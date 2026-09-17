@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+    <!-- Paper sheet with folded top-right corner -->
+    <path
+        android:fillColor="#FDFBF7"
+        android:strokeColor="#C5D3C7"
+        android:strokeWidth="2"
+        android:strokeLineJoin="round"
+        android:pathData="M16,8 L40,8 L50,18 L50,56 C50,57.1 49.1,58 48,58 L16,58 C14.9,58 14,57.1 14,56 L14,10 C14,8.9 14.9,8 16,8 Z" />
+    <!-- Folded corner fold line -->
+    <path
+        android:fillColor="#E6EDE7"
+        android:strokeColor="#C5D3C7"
+        android:strokeWidth="2"
+        android:strokeLineJoin="round"
+        android:pathData="M40,8 L40,18 L50,18 Z" />
+    <!-- PDF text / label badge -->
+    <path
+        android:fillColor="#4A6B53"
+        android:pathData="M22,28 C22,26.9 22.9,26 24,26 L40,26 C41.1,26 42,26.9 42,28 L42,33 C42,34.1 41.1,35 40,35 L24,35 C22.9,35 22,34.1 22,33 Z" />
+    <!-- Three subtle text lines -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#94A899"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M22,41 L42,41 M22,46 L38,46 M22,51 L34,51" />
+</vector>

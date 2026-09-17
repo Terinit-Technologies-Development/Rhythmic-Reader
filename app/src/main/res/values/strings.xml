@@ -1,0 +1,68 @@
+<resources>
+    <string name="app_name">Rhythmic Reader</string>
+    <string name="tagline">A quieter way to read</string>
+    <string name="header_quote">Good reading finds a calmer you.</string>
+
+    <!-- Library -->
+    <string name="library_title">Library</string>
+    <string name="import_pdf">Import PDF</string>
+    <string name="import_a_pdf">Import a PDF</string>
+    <string name="import_card_desc">Add books from your device and keep reading, offline.</string>
+    <string name="empty_title">Import your first book</string>
+    <string name="empty_description">Add PDF books from your device and let Rhythmic Reader help you read with more calm, focus, and ease.</string>
+    <string name="feature_device_title">Reads PDFs on your device</string>
+    <string name="feature_device_desc">Import books stored on your phone or tablet. No accounts required.</string>
+    <string name="feature_private_title">Your books stay private</string>
+    <string name="feature_private_desc">All files are stored locally on your device. Read offline, anytime.</string>
+    <string name="recent_books">Recent</string>
+    <string name="all_books">Books</string>
+    <string name="see_all">See all</string>
+    <string name="pages_progress">%1$d of %2$d pages</string>
+    <string name="page_single">%1$d page</string>
+    <string name="page_plural">%1$d pages</string>
+    <string name="untitled_pdf">Untitled PDF</string>
+    <string name="action_open">Open book</string>
+    <string name="action_remove">Remove from library</string>
+    <string name="remove_confirm_title">Remove from library?</string>
+    <string name="remove_confirm_desc">This removes the book from your Rhythmic Reader library. The original PDF file on your device will NOT be deleted.</string>
+    <string name="cancel">Cancel</string>
+    <string name="remove">Remove</string>
+
+    <!-- Reader -->
+    <string name="reader_back">Back to library</string>
+    <string name="page_indicator">%1$d of %2$d</string>
+    <string name="previous_page">Previous page</string>
+    <string name="next_page">Next page</string>
+    <string name="document_unavailable_title">This document is no longer available.</string>
+    <string name="document_unavailable_desc">The file may have been moved or deleted from your device. Choose it again or remove it from your library.</string>
+    <string name="choose_again">Choose file again</string>
+    <string name="loading_document">Opening document…</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="section_storage">Local storage</string>
+    <string name="manage_documents">Manage imported documents</string>
+    <string name="manage_documents_desc">View, remove, or organize PDFs on this device</string>
+    <string name="device_storage">Device storage usage</string>
+    <string name="device_storage_desc">%1$s used by library • %2$s free on device</string>
+    <string name="section_history">Reading history</string>
+    <string name="clear_history">Clear local reading history</string>
+    <string name="clear_history_desc">This will reset all reading progress from this device</string>
+    <string name="clear_history_confirm_title">Reset reading progress?</string>
+    <string name="clear_history_confirm_desc">All saved page positions and reading timestamps will be reset to the beginning. Your books will remain in the library.</string>
+    <string name="clear_library">Clear library</string>
+    <string name="clear_library_desc">Remove all book references from the library</string>
+    <string name="reset_action">Reset</string>
+    <string name="section_about">About</string>
+    <string name="app_version_title">Rhythmic Reader</string>
+    <string name="app_version_val">Version 1.0.0 (Standalone V1)</string>
+    <string name="privacy_policy">Privacy Policy</string>
+    <string name="privacy_policy_desc">100% offline. We never track, transmit, or collect your reading data.</string>
+    <string name="terms_of_service">Terms of Service</string>
+    <string name="terms_of_service_desc">Our guidelines for a calmer reading experience.</string>
+    <string name="offline_guarantee">Rhythmic Reader operates entirely on your device with no internet access or third-party tracking.</string>
+
+    <!-- Errors -->
+    <string name="error_import_failed">Could not import PDF. Ensure the file is a valid PDF document.</string>
+    <string name="error_duplicate_imported">Book is already in your library.</string>
+</resources>

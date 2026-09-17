@@ -1,0 +1,26 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="32dp"
+    android:height="32dp"
+    android:viewportWidth="32"
+    android:viewportHeight="32">
+    <!-- Branch stem -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#3A5A40"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M8,28 C12,22 17,14 20,4" />
+    <!-- Top right leaf -->
+    <path
+        android:fillColor="#4A6B53"
+        android:pathData="M20,4 C22,8 27,9 27,14 C27,19 22,18 19,13 C18,10 19,6 20,4 Z" />
+    <!-- Left middle leaf -->
+    <path
+        android:fillColor="#4A6B53"
+        android:pathData="M15,16 C12,14 7,16 6,21 C5,25 10,25 14,21 C15.5,19.5 15.5,17.5 15,16 Z" />
+    <!-- Lower leaf -->
+    <path
+        android:fillColor="#5C7A65"
+        android:pathData="M18,15 C21,17 24,18 25,23 C25,26 21,26 17,23 C16,21 17,17 18,15 Z" />
+</vector>
