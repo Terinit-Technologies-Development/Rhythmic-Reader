@@ -5,6 +5,11 @@
         android:name="com.terinit.rhythmicreader.permission.RECOVERY"
         android:protectionLevel="signature" />
 
+    <queries>
+        <package android:name="com.terinit.rhythmicroutine.qa" />
+        <package android:name="com.terinit.rhythmicroutine" />
+    </queries>
+
     <application
         android:name=".app.RhythmicReaderApplication"
         android:allowBackup="true"

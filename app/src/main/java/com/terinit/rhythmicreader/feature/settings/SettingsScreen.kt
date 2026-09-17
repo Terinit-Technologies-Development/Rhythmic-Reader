@@ -1,5 +1,7 @@
 package com.terinit.rhythmicreader.feature.settings
 
+import android.content.ComponentName
+import android.content.Intent
 import androidx.compose.foundation.background
 import com.terinit.rhythmicreader.app.Screen
 import androidx.compose.foundation.border
@@ -94,7 +96,10 @@ fun SettingsScreen(
                 pm.getPackageInfo("com.terinit.rhythmicroutine", 0)
                 true
             } catch (_: Exception) {
-                false
+                val intent = Intent().apply {
+                    setComponent(ComponentName("com.terinit.rhythmicroutine.qa", "com.terinit.rhythmicroutine.MainActivity"))
+                }
+                pm.resolveActivity(intent, 0) != null
             }
         }
     }
@@ -207,11 +212,17 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    val launchIntent = context.packageManager.getLaunchIntentForPackage("com.terinit.rhythmicroutine.qa")
-                                        ?: context.packageManager.getLaunchIntentForPackage("com.terinit.rhythmicroutine")
-                                    if (launchIntent != null) {
+                                    val pm = context.packageManager
+                                    val launchIntent = pm.getLaunchIntentForPackage("com.terinit.rhythmicroutine.qa")
+                                        ?: pm.getLaunchIntentForPackage("com.terinit.rhythmicroutine")
+                                        ?: Intent().apply {
+                                            setComponent(ComponentName("com.terinit.rhythmicroutine.qa", "com.terinit.rhythmicroutine.MainActivity"))
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+
+                                    runCatching {
                                         context.startActivity(launchIntent)
-                                    } else {
+                                    }.onFailure {
                                         showIntegrationDialog = true
                                     }
                                 }
