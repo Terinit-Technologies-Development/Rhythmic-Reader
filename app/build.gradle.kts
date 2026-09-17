@@ -1,6 +1,5 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
 }
@@ -31,10 +30,6 @@ android {
     kotlin {
         jvmToolchain(17)
     }
-}
-
-tasks.matching { it.name.contains("AarMetadata") }.configureEach {
-    enabled = false
 }
 
 dependencies {
