@@ -30,13 +30,16 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class LibraryViewModelTest {
 
-    private val testDispatcher = StandardTestDispatcher()
+    private lateinit var testDispatcher: kotlinx.coroutines.test.TestDispatcher
     private val booksFlow = MutableStateFlow<List<Book>>(emptyList())
-    private val fakeRepository = FakeBookRepository(booksFlow)
+    private lateinit var fakeRepository: FakeBookRepository
 
     @Before
     fun setup() {
+        testDispatcher = StandardTestDispatcher()
         Dispatchers.setMain(testDispatcher)
+        booksFlow.value = emptyList()
+        fakeRepository = FakeBookRepository(booksFlow)
     }
 
     @After

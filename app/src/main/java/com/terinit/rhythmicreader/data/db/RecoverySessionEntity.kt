@@ -15,5 +15,6 @@ data class RecoverySessionEntity(
     val status: String,
     val createdAtEpochMs: Long,
     val completedAtEpochMs: Long?,
-    val expiresAtEpochMs: Long?
+    val expiresAtEpochMs: Long?,
+    val protocolVersion: Int = 1
 )

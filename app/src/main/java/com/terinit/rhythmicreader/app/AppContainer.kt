@@ -28,7 +28,7 @@ class AppContainer(
             context,
             ReaderDatabase::class.java,
             "rhythmic-reader.db"
-        ).fallbackToDestructiveMigration(dropAllTables = true).build()
+        ).addMigrations(ReaderDatabase.MIGRATION_2_3).build()
 
     val pdfDocumentRepository: PdfDocumentRepository =
         AndroidPdfDocumentRepository(
@@ -48,7 +48,8 @@ class AppContainer(
 
     val recoveryRepository: RecoveryRepository =
         DefaultRecoveryRepository(
-            recoveryDao = database.recoveryDao()
+            recoveryDao = database.recoveryDao(),
+            contentResolver = context.contentResolver
         )
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

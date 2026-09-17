@@ -157,7 +157,7 @@ fun ReaderScreen(
         }
     }
 
-    if (showRecoveryDevDialog) {
+    if (com.terinit.rhythmicreader.BuildConfig.DEBUG && showRecoveryDevDialog) {
         AlertDialog(
             onDismissRequest = { showRecoveryDevDialog = false },
             title = {
@@ -360,12 +360,14 @@ private fun ReaderTopBar(
                 )
             }
 
-            IconButton(onClick = onOpenRecoveryDevDialog) {
-                Icon(
-                    imageVector = Icons.Default.HourglassTop,
-                    contentDescription = "Test Recovery Mode",
-                    tint = if (recoveryUiState.isSessionActive) SageGreenPrimary else CharcoalMuted
-                )
+            if (com.terinit.rhythmicreader.BuildConfig.DEBUG) {
+                IconButton(onClick = onOpenRecoveryDevDialog) {
+                    Icon(
+                        imageVector = Icons.Default.HourglassTop,
+                        contentDescription = "Test Recovery Mode",
+                        tint = if (recoveryUiState.isSessionActive) SageGreenPrimary else CharcoalMuted
+                    )
+                }
             }
         }
     }

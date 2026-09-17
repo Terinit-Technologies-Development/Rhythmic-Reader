@@ -1,11 +1,14 @@
 package com.terinit.rhythmicreader.data.repository
 
+import android.content.ContentResolver
 import com.terinit.rhythmicreader.data.db.QualifiedPageEntity
 import com.terinit.rhythmicreader.data.db.RecoveryDao
 import com.terinit.rhythmicreader.data.db.RecoverySessionEntity
 import com.terinit.rhythmicreader.domain.model.RecoveryRequirement
 import com.terinit.rhythmicreader.domain.model.RecoverySession
 import com.terinit.rhythmicreader.domain.model.RecoveryStatus
+import com.terinit.rhythmicreader.integration.rhythmic.RecoveryProtocol
+import com.terinit.rhythmicreader.integration.rhythmic.RecoveryRequest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -15,7 +18,8 @@ import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DefaultRecoveryRepository(
-    private val recoveryDao: RecoveryDao
+    private val recoveryDao: RecoveryDao,
+    private val contentResolver: ContentResolver? = null
 ) : RecoveryRepository {
 
     override suspend fun createSession(
@@ -31,16 +35,64 @@ class DefaultRecoveryRepository(
             status = RecoveryStatus.ACTIVE.name,
             createdAtEpochMs = now,
             completedAtEpochMs = null,
-            expiresAtEpochMs = null
+            expiresAtEpochMs = null,
+            protocolVersion = 1
         )
         recoveryDao.insertSession(entity)
+        notifyChange(sessionId)
         return RecoverySession(
             sessionId = sessionId,
             requirement = requirement,
             accumulatedActiveMs = 0L,
             qualifiedPages = 0,
             status = RecoveryStatus.ACTIVE,
-            createdAtEpochMs = now
+            createdAtEpochMs = now,
+            protocolVersion = 1
+        )
+    }
+
+    override suspend fun acceptExternalRequest(request: RecoveryRequest): RecoverySession? {
+        if (!request.isValid) return null
+        val existing = recoveryDao.getSession(request.sessionId)
+        if (existing != null) {
+            val matches = existing.requiredActiveSeconds == request.requiredSeconds &&
+                existing.requiredQualifiedPages == request.requiredPages &&
+                existing.expiresAtEpochMs == request.expiresAt
+            return if (matches) {
+                val count = recoveryDao.qualifiedPageCount(request.sessionId)
+                existing.toDomain(count)
+            } else {
+                null
+            }
+        }
+
+        val entity = RecoverySessionEntity(
+            sessionId = request.sessionId,
+            requiredActiveSeconds = request.requiredSeconds,
+            requiredQualifiedPages = request.requiredPages,
+            accumulatedActiveMs = 0L,
+            status = RecoveryStatus.ACTIVE.name,
+            createdAtEpochMs = request.createdAt,
+            completedAtEpochMs = null,
+            expiresAtEpochMs = request.expiresAt,
+            protocolVersion = request.protocolVersion
+        )
+        recoveryDao.insertSession(entity)
+        notifyChange(request.sessionId)
+
+        return RecoverySession(
+            sessionId = request.sessionId,
+            requirement = RecoveryRequirement(
+                requiredActiveSeconds = request.requiredSeconds,
+                requiredQualifiedPages = request.requiredPages
+            ),
+            accumulatedActiveMs = 0L,
+            qualifiedPages = 0,
+            status = RecoveryStatus.ACTIVE,
+            createdAtEpochMs = request.createdAt,
+            completedAtEpochMs = null,
+            expiresAtEpochMs = request.expiresAt,
+            protocolVersion = request.protocolVersion
         )
     }
 
@@ -58,6 +110,7 @@ class DefaultRecoveryRepository(
 
     override suspend fun updateActiveTime(sessionId: String, activeMs: Long) {
         recoveryDao.updateActiveTime(sessionId, activeMs)
+        notifyChange(sessionId)
     }
 
     override suspend fun qualifyPage(
@@ -73,20 +126,24 @@ class DefaultRecoveryRepository(
                 qualifiedAtEpochMs = System.currentTimeMillis()
             )
         )
-        // Room returns -1 when insert is ignored due to primary key conflict
-        return rowId != -1L
+        val qualified = rowId != -1L
+        if (qualified) {
+            notifyChange(sessionId)
+        }
+        return qualified
     }
 
     override suspend fun markComplete(sessionId: String) {
         val current = recoveryDao.getSession(sessionId) ?: return
         if (current.status == RecoveryStatus.COMPLETE.name) {
-            return // Idempotent: do not overwrite completion timestamp
+            return
         }
         recoveryDao.markComplete(
             sessionId = sessionId,
             status = RecoveryStatus.COMPLETE.name,
             completedAt = System.currentTimeMillis()
         )
+        notifyChange(sessionId)
     }
 
     override fun observeSession(sessionId: String): Flow<RecoverySession?> {
@@ -106,6 +163,12 @@ class DefaultRecoveryRepository(
         }
     }
 
+    private fun notifyChange(sessionId: String) {
+        runCatching {
+            contentResolver?.notifyChange(RecoveryProtocol.sessionUri(sessionId), null)
+        }
+    }
+
     private fun RecoverySessionEntity.toDomain(qualifiedPagesCount: Int): RecoverySession {
         val parsedStatus = runCatching {
             RecoveryStatus.valueOf(status)
@@ -122,7 +185,8 @@ class DefaultRecoveryRepository(
             status = parsedStatus,
             createdAtEpochMs = createdAtEpochMs,
             completedAtEpochMs = completedAtEpochMs,
-            expiresAtEpochMs = expiresAtEpochMs
+            expiresAtEpochMs = expiresAtEpochMs,
+            protocolVersion = protocolVersion
         )
     }
 }

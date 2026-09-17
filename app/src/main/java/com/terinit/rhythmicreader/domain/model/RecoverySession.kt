@@ -8,7 +8,8 @@ data class RecoverySession(
     val status: RecoveryStatus,
     val createdAtEpochMs: Long,
     val completedAtEpochMs: Long? = null,
-    val expiresAtEpochMs: Long? = null
+    val expiresAtEpochMs: Long? = null,
+    val protocolVersion: Int = 1
 ) {
     val activeSeconds: Long
         get() = accumulatedActiveMs / 1000L

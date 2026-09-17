@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <permission
+        android:name="com.terinit.rhythmicreader.permission.RECOVERY"
+        android:protectionLevel="signature" />
+
     <application
         android:name=".app.RhythmicReaderApplication"
         android:allowBackup="true"
@@ -18,6 +22,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".integration.rhythmic.RecoveryEntryActivity"
+            android:exported="true"
+            android:permission="com.terinit.rhythmicreader.permission.RECOVERY">
+            <intent-filter>
+                <action android:name="com.terinit.rhythmicreader.action.START_RECOVERY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <provider
+            android:name=".integration.rhythmic.RecoveryStatusProvider"
+            android:authorities="com.terinit.rhythmicreader.recovery"
+            android:exported="true"
+            android:readPermission="com.terinit.rhythmicreader.permission.RECOVERY" />
     </application>
 
 </manifest>

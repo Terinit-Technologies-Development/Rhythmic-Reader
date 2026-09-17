@@ -6,7 +6,7 @@ import android.os.PowerManager
 class ScreenStateReader(
     context: Context
 ) {
-    private val powerManager = context.getSystemService(PowerManager::class.java)
+    private val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
 
     fun isInteractive(): Boolean {
         return powerManager?.isInteractive ?: true

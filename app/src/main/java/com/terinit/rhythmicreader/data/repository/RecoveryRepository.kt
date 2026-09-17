@@ -2,6 +2,7 @@ package com.terinit.rhythmicreader.data.repository
 
 import com.terinit.rhythmicreader.domain.model.RecoveryRequirement
 import com.terinit.rhythmicreader.domain.model.RecoverySession
+import com.terinit.rhythmicreader.integration.rhythmic.RecoveryRequest
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
@@ -11,6 +12,10 @@ interface RecoveryRepository {
         requirement: RecoveryRequirement,
         sessionId: String = UUID.randomUUID().toString()
     ): RecoverySession
+
+    suspend fun acceptExternalRequest(
+        request: RecoveryRequest
+    ): RecoverySession?
 
     suspend fun getSession(
         sessionId: String

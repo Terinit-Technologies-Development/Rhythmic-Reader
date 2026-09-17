@@ -5,6 +5,7 @@ enum class RecoveryStatus {
     ACTIVE,
     COMPLETE,
     CANCELLED,
+    ABANDONED,
     EXPIRED,
     INVALID
 }
