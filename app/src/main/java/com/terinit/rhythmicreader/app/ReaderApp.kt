@@ -65,7 +65,8 @@ fun ReaderApp(
                 factory = ReaderViewModel.provideFactory(
                     bookId = screen.bookId,
                     bookRepository = container.bookRepository,
-                    pdfDocumentRepository = container.pdfDocumentRepository
+                    pdfDocumentRepository = container.pdfDocumentRepository,
+                    recoveryCoordinator = container.recoveryCoordinator
                 )
             )
             val uiState by readerViewModel.uiState.collectAsStateWithLifecycle()

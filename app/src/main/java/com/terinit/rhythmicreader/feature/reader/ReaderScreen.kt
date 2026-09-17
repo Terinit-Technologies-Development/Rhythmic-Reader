@@ -57,9 +57,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.pdf.compose.PdfViewerState
 import com.terinit.rhythmicreader.R
 import com.terinit.rhythmicreader.feature.reader.components.PdfReaderContent
+import com.terinit.rhythmicreader.feature.recovery.RecoveryCard
+import com.terinit.rhythmicreader.feature.recovery.RecoveryUiState
 import com.terinit.rhythmicreader.ui.theme.CharcoalMuted
 import com.terinit.rhythmicreader.ui.theme.CharcoalPrimary
 import com.terinit.rhythmicreader.ui.theme.CharcoalSecondary
@@ -69,6 +80,7 @@ import com.terinit.rhythmicreader.ui.theme.WarmBackground
 import com.terinit.rhythmicreader.ui.theme.WarmOutline
 import com.terinit.rhythmicreader.ui.theme.WarmSurface
 import com.terinit.rhythmicreader.ui.theme.WarmSurfaceVariant
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 @OptIn(androidx.pdf.ExperimentalPdfApi::class)
@@ -97,6 +109,42 @@ fun ReaderScreen(
         }
     }
 
+    val recoveryUiState by viewModel.recoveryUiState.collectAsStateWithLifecycle()
+    var showRecoveryDevDialog by remember { mutableStateOf(false) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    viewModel.onAppForegroundChanged(true)
+                    viewModel.onScreenInteractiveChanged(true)
+                    viewModel.onReaderVisibleChanged(true)
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    viewModel.onAppForegroundChanged(false)
+                    viewModel.onReaderVisibleChanged(false)
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    LaunchedEffect(viewerState, recoveryUiState.sessionId) {
+        if (recoveryUiState.sessionId == null) return@LaunchedEffect
+        snapshotFlow { viewerState?.firstVisiblePage ?: -1 }
+            .distinctUntilChanged()
+            .collect { page ->
+                if (page >= 0) {
+                    viewModel.onPageChanged(page)
+                }
+            }
+    }
+
     // Save final page upon back / exit
     BackHandler {
         viewModel.saveFinalProgress()
@@ -109,6 +157,55 @@ fun ReaderScreen(
         }
     }
 
+    if (showRecoveryDevDialog) {
+        AlertDialog(
+            onDismissRequest = { showRecoveryDevDialog = false },
+            title = {
+                Text(
+                    text = "Recovery Session (Test Mode)",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = CharcoalPrimary
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Pass 02 local verification. Start an internal reading session to test active time tracking and page qualification.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = CharcoalSecondary
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Current Status: ${recoveryUiState.status ?: "None"}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = CharcoalMuted
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.startTestRecovery(requiredMinutes = 30, requiredPages = 10)
+                        showRecoveryDevDialog = false
+                    }
+                ) {
+                    Text("Standard (30m / 10p)", color = SageGreenPrimary)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.startTestRecovery(requiredMinutes = 1, requiredPages = 2)
+                        showRecoveryDevDialog = false
+                    }
+                ) {
+                    Text("Quick (1m / 2p)", color = CharcoalSecondary)
+                }
+            },
+            containerColor = WarmSurface
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -117,6 +214,8 @@ fun ReaderScreen(
         // Top App Bar
         ReaderTopBar(
             title = uiState.displayTitle,
+            recoveryUiState = recoveryUiState,
+            onOpenRecoveryDevDialog = { showRecoveryDevDialog = true },
             onBack = {
                 viewModel.saveFinalProgress()
                 onBack()
@@ -170,6 +269,18 @@ fun ReaderScreen(
                     )
                 }
             }
+
+            // Recovery Card overlay when a session exists
+            if (recoveryUiState.status != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .align(Alignment.TopCenter)
+                ) {
+                    RecoveryCard(uiState = recoveryUiState)
+                }
+            }
         }
 
         // Bottom reading navigation bar
@@ -204,6 +315,8 @@ fun ReaderScreen(
 @Composable
 private fun ReaderTopBar(
     title: String,
+    recoveryUiState: RecoveryUiState,
+    onOpenRecoveryDevDialog: () -> Unit,
     onBack: () -> Unit
 ) {
     Surface(
@@ -241,9 +354,17 @@ private fun ReaderTopBar(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "PDF",
+                    text = if (recoveryUiState.isSessionActive) "Recovery Active" else "PDF",
                     style = MaterialTheme.typography.bodySmall,
-                    color = CharcoalMuted
+                    color = if (recoveryUiState.isSessionActive) SageGreenPrimary else CharcoalMuted
+                )
+            }
+
+            IconButton(onClick = onOpenRecoveryDevDialog) {
+                Icon(
+                    imageVector = Icons.Default.HourglassTop,
+                    contentDescription = "Test Recovery Mode",
+                    tint = if (recoveryUiState.isSessionActive) SageGreenPrimary else CharcoalMuted
                 )
             }
         }

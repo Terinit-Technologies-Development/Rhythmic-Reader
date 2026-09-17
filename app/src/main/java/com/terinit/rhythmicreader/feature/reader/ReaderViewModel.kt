@@ -6,24 +6,35 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.terinit.rhythmicreader.data.repository.BookRepository
 import com.terinit.rhythmicreader.data.repository.PdfDocumentRepository
+import com.terinit.rhythmicreader.domain.model.RecoveryRequirement
+import com.terinit.rhythmicreader.domain.model.RecoverySession
+import com.terinit.rhythmicreader.domain.model.RecoveryStatus
+import com.terinit.rhythmicreader.domain.recovery.RecoveryCoordinator
+import com.terinit.rhythmicreader.feature.recovery.RecoveryUiState
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 @OptIn(FlowPreview::class)
 class ReaderViewModel(
     private val bookId: String,
     private val bookRepository: BookRepository,
-    private val pdfDocumentRepository: PdfDocumentRepository
+    private val pdfDocumentRepository: PdfDocumentRepository,
+    private val recoveryCoordinator: RecoveryCoordinator? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReaderUiState())
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
+
+    private val _recoveryUiState = MutableStateFlow(RecoveryUiState())
+    val recoveryUiState: StateFlow<RecoveryUiState> = _recoveryUiState.asStateFlow()
 
     private val pageChangeFlow = MutableStateFlow(0)
     private var lastPersistedPage: Int = -1
@@ -31,6 +42,44 @@ class ReaderViewModel(
     init {
         loadDocument()
         observePageChangesForPersistence()
+        initRecoveryCoordination()
+    }
+
+    private fun initRecoveryCoordination() {
+        if (recoveryCoordinator == null) return
+
+        viewModelScope.launch {
+            recoveryCoordinator.currentSession.collect { session ->
+                updateRecoveryUi(session)
+            }
+        }
+
+        viewModelScope.launch {
+            while (isActive) {
+                delay(1000L)
+                val session = recoveryCoordinator.currentSession.value
+                if (session != null && session.status == RecoveryStatus.ACTIVE) {
+                    updateRecoveryUi(session)
+                }
+            }
+        }
+    }
+
+    private fun updateRecoveryUi(session: RecoverySession?) {
+        if (session == null) {
+            _recoveryUiState.value = RecoveryUiState()
+            return
+        }
+        _recoveryUiState.update {
+            it.copy(
+                sessionId = session.sessionId,
+                status = session.status,
+                activeSeconds = recoveryCoordinator?.getActiveReadingSeconds() ?: session.activeSeconds,
+                requiredActiveSeconds = session.requirement.requiredActiveSeconds,
+                qualifiedPages = session.qualifiedPages,
+                requiredQualifiedPages = session.requirement.requiredQualifiedPages
+            )
+        }
     }
 
     private fun loadDocument() {
@@ -38,6 +87,7 @@ class ReaderViewModel(
             _uiState.update { it.copy(isLoading = true, isDocumentUnavailable = false, errorMessage = null) }
             val book = bookRepository.getBook(bookId)
             if (book == null) {
+                recoveryCoordinator?.updateDocumentLoaded(false, null)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -65,7 +115,11 @@ class ReaderViewModel(
                         isDocumentUnavailable = false
                     )
                 }
+                recoveryCoordinator?.updateDocumentLoaded(true, bookId)
+                recoveryCoordinator?.updateReaderVisible(true)
+                recoveryCoordinator?.onVisiblePageChanged(bookId, initialPage)
             } catch (e: Exception) {
+                recoveryCoordinator?.updateDocumentLoaded(false, null)
                 _uiState.update {
                     it.copy(
                         book = book,
@@ -92,6 +146,32 @@ class ReaderViewModel(
         if (page < 0) return
         _uiState.update { it.copy(currentPage = page) }
         pageChangeFlow.value = page
+        viewModelScope.launch {
+            recoveryCoordinator?.onVisiblePageChanged(bookId, page)
+        }
+    }
+
+    fun onAppForegroundChanged(isForeground: Boolean) {
+        recoveryCoordinator?.updateAppForeground(isForeground)
+    }
+
+    fun onScreenInteractiveChanged(isInteractive: Boolean) {
+        recoveryCoordinator?.updateScreenInteractive(isInteractive)
+    }
+
+    fun onReaderVisibleChanged(isVisible: Boolean) {
+        recoveryCoordinator?.updateReaderVisible(isVisible)
+    }
+
+    fun startTestRecovery(requiredMinutes: Long = 30, requiredPages: Int = 10) {
+        viewModelScope.launch {
+            recoveryCoordinator?.startSession(
+                RecoveryRequirement(
+                    requiredActiveSeconds = requiredMinutes * 60L,
+                    requiredQualifiedPages = requiredPages
+                )
+            )
+        }
     }
 
     fun saveFinalProgress() {
@@ -120,6 +200,8 @@ class ReaderViewModel(
     override fun onCleared() {
         super.onCleared()
         saveFinalProgress()
+        recoveryCoordinator?.updateReaderVisible(false)
+        recoveryCoordinator?.updateDocumentLoaded(false, null)
         pdfDocumentRepository.closeCurrent()
     }
 
@@ -127,11 +209,17 @@ class ReaderViewModel(
         fun provideFactory(
             bookId: String,
             bookRepository: BookRepository,
-            pdfDocumentRepository: PdfDocumentRepository
+            pdfDocumentRepository: PdfDocumentRepository,
+            recoveryCoordinator: RecoveryCoordinator? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return ReaderViewModel(bookId, bookRepository, pdfDocumentRepository) as T
+                return ReaderViewModel(
+                    bookId = bookId,
+                    bookRepository = bookRepository,
+                    pdfDocumentRepository = pdfDocumentRepository,
+                    recoveryCoordinator = recoveryCoordinator
+                ) as T
             }
         }
     }
