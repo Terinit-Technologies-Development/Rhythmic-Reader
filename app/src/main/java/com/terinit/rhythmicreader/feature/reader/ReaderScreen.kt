@@ -4,11 +4,18 @@ import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +30,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Warning
@@ -51,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -74,6 +84,7 @@ import com.terinit.rhythmicreader.feature.recovery.RecoveryUiState
 import com.terinit.rhythmicreader.ui.theme.CharcoalMuted
 import com.terinit.rhythmicreader.ui.theme.CharcoalPrimary
 import com.terinit.rhythmicreader.ui.theme.CharcoalSecondary
+import com.terinit.rhythmicreader.ui.theme.SageGreenContainer
 import com.terinit.rhythmicreader.ui.theme.SageGreenLight
 import com.terinit.rhythmicreader.ui.theme.SageGreenPrimary
 import com.terinit.rhythmicreader.ui.theme.WarmBackground
@@ -206,108 +217,289 @@ fun ReaderScreen(
         )
     }
 
-    Column(
+    var showControls by remember { mutableStateOf(false) }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(WarmBackground)
     ) {
-        // Top App Bar
-        ReaderTopBar(
-            title = uiState.displayTitle,
-            recoveryUiState = recoveryUiState,
-            onOpenRecoveryDevDialog = { showRecoveryDevDialog = true },
-            onBack = {
-                viewModel.saveFinalProgress()
-                onBack()
+        // PDF Content area filling 100% of the screen
+        when {
+            uiState.isLoading -> {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(
+                        color = SageGreenPrimary,
+                        strokeWidth = 2.5.dp
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(R.string.loading_document),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = CharcoalSecondary
+                    )
+                }
             }
-        )
 
-        // Content area
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
+            uiState.isDocumentUnavailable -> {
+                UnavailableDocumentView(
+                    onChooseAgain = { filePicker.launch(arrayOf("application/pdf")) },
+                    onBack = onBack
+                )
+            }
+
+            uiState.pdfDocument != null -> {
+                PdfReaderContent(
+                    document = uiState.pdfDocument,
+                    initialPage = uiState.currentPage,
+                    onVisiblePageChanged = { page ->
+                        viewModel.onPageChanged(page)
+                    },
+                    onViewerStateReady = { state ->
+                        viewerState = state
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        // FULLSCREEN IMMERSIVE OVERLAYS:
+        // 1. When controls are HIDDEN:
+        // - Discreet floating back button at top-left
+        // - Discreet floating recovery pill at top-center (if active)
+        // - Discreet floating controls toggle button at top-right
+        // - Floating Page Focus Pill at bottom-center with direct < and > stepping buttons
+        AnimatedVisibility(
+            visible = !showControls,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize()
         ) {
-            when {
-                uiState.isLoading -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Floating back button
+                IconButton(
+                    onClick = {
+                        viewModel.saveFinalProgress()
+                        onBack()
+                    },
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .padding(start = 16.dp, top = 12.dp)
+                        .align(Alignment.TopStart)
+                        .size(42.dp)
+                        .shadow(4.dp, CircleShape)
+                        .clip(CircleShape)
+                        .background(WarmSurface.copy(alpha = 0.90f))
+                        .border(1.dp, WarmOutline.copy(alpha = 0.7f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.reader_back),
+                        tint = CharcoalPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Floating Recovery status badge (if active)
+                if (recoveryUiState.status != null) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = SageGreenContainer.copy(alpha = 0.94f),
+                        shadowElevation = 4.dp,
+                        modifier = Modifier
+                            .statusBarsPadding()
+                            .padding(top = 14.dp)
+                            .align(Alignment.TopCenter)
+                            .border(1.dp, SageGreenPrimary.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable { showControls = true }
                     ) {
-                        CircularProgressIndicator(
-                            color = SageGreenPrimary,
-                            strokeWidth = 2.5.dp
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = stringResource(R.string.loading_document),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = CharcoalSecondary
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_leaf),
+                                contentDescription = null,
+                                tint = SageGreenPrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Recovery: ${recoveryUiState.activeMinutesDisplay} • ${recoveryUiState.qualifiedPagesDisplay} pages",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = SageGreenPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
 
-                uiState.isDocumentUnavailable -> {
-                    UnavailableDocumentView(
-                        onChooseAgain = { filePicker.launch(arrayOf("application/pdf")) },
-                        onBack = onBack
-                    )
-                }
-
-                uiState.pdfDocument != null -> {
-                    PdfReaderContent(
-                        document = uiState.pdfDocument,
-                        initialPage = uiState.currentPage,
-                        onVisiblePageChanged = { page ->
-                            viewModel.onPageChanged(page)
-                        },
-                        onViewerStateReady = { state ->
-                            viewerState = state
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            }
-
-            // Recovery Card overlay when a session exists
-            if (recoveryUiState.status != null) {
-                Box(
+                // Floating full controls trigger button
+                IconButton(
+                    onClick = { showControls = true },
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(end = 16.dp, top = 12.dp)
+                        .align(Alignment.TopEnd)
+                        .size(42.dp)
+                        .shadow(4.dp, CircleShape)
+                        .clip(CircleShape)
+                        .background(WarmSurface.copy(alpha = 0.90f))
+                        .border(1.dp, WarmOutline.copy(alpha = 0.7f), CircleShape)
                 ) {
-                    RecoveryCard(uiState = recoveryUiState)
+                    Icon(
+                        imageVector = Icons.Default.FullscreenExit,
+                        contentDescription = "Show Controls",
+                        tint = CharcoalPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Floating Page Focus Pill at bottom center
+                if (uiState.pdfDocument != null && uiState.totalPages > 0) {
+                    Surface(
+                        shape = RoundedCornerShape(28.dp),
+                        color = WarmSurface.copy(alpha = 0.94f),
+                        shadowElevation = 6.dp,
+                        modifier = Modifier
+                            .navigationBarsPadding()
+                            .padding(bottom = 18.dp)
+                            .align(Alignment.BottomCenter)
+                            .border(1.dp, WarmOutline.copy(alpha = 0.8f), RoundedCornerShape(28.dp))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    if (uiState.currentPage > 0) {
+                                        coroutineScope.launch {
+                                            viewerState?.scrollToPage(uiState.currentPage - 1)
+                                        }
+                                    }
+                                },
+                                enabled = uiState.currentPage > 0,
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                    contentDescription = stringResource(R.string.previous_page),
+                                    tint = if (uiState.currentPage > 0) CharcoalPrimary else CharcoalMuted,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable { showControls = true }
+                                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "Page ${uiState.currentPage + 1} of ${uiState.totalPages}",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = CharcoalPrimary
+                                )
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    if (uiState.currentPage < uiState.totalPages - 1) {
+                                        coroutineScope.launch {
+                                            viewerState?.scrollToPage(uiState.currentPage + 1)
+                                        }
+                                    }
+                                },
+                                enabled = uiState.currentPage < uiState.totalPages - 1,
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = stringResource(R.string.next_page),
+                                    tint = if (uiState.currentPage < uiState.totalPages - 1) CharcoalPrimary else CharcoalMuted,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        // Bottom reading navigation bar
-        if (uiState.pdfDocument != null && uiState.totalPages > 0) {
-            ReaderBottomBar(
-                currentPage = uiState.currentPage,
-                totalPages = uiState.totalPages,
-                onPreviousClick = {
-                    if (uiState.currentPage > 0) {
-                        coroutineScope.launch {
-                            viewerState?.scrollToPage(uiState.currentPage - 1)
-                        }
+        // 2. When controls are VISIBLE:
+        // Top Bar slides down
+        AnimatedVisibility(
+            visible = showControls,
+            enter = fadeIn() + slideInVertically { -it },
+            exit = fadeOut() + slideOutVertically { -it },
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                ReaderTopBar(
+                    title = uiState.displayTitle,
+                    recoveryUiState = recoveryUiState,
+                    onOpenRecoveryDevDialog = { showRecoveryDevDialog = true },
+                    onToggleFullscreen = { showControls = false },
+                    onBack = {
+                        viewModel.saveFinalProgress()
+                        onBack()
                     }
-                },
-                onNextClick = {
-                    if (uiState.currentPage < uiState.totalPages - 1) {
-                        coroutineScope.launch {
-                            viewerState?.scrollToPage(uiState.currentPage + 1)
-                        }
-                    }
-                },
-                onPageSelected = { targetPage ->
-                    coroutineScope.launch {
-                        viewerState?.scrollToPage(targetPage)
+                )
+
+                if (recoveryUiState.status != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        RecoveryCard(uiState = recoveryUiState)
                     }
                 }
-            )
+            }
+        }
+
+        // Bottom Scrubber Bar slides up
+        if (uiState.pdfDocument != null && uiState.totalPages > 0) {
+            AnimatedVisibility(
+                visible = showControls,
+                enter = fadeIn() + slideInVertically { it },
+                exit = fadeOut() + slideOutVertically { it },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                ReaderBottomBar(
+                    currentPage = uiState.currentPage,
+                    totalPages = uiState.totalPages,
+                    onPreviousClick = {
+                        if (uiState.currentPage > 0) {
+                            coroutineScope.launch {
+                                viewerState?.scrollToPage(uiState.currentPage - 1)
+                            }
+                        }
+                    },
+                    onNextClick = {
+                        if (uiState.currentPage < uiState.totalPages - 1) {
+                            coroutineScope.launch {
+                                viewerState?.scrollToPage(uiState.currentPage + 1)
+                            }
+                        }
+                    },
+                    onPageSelected = { targetPage ->
+                        coroutineScope.launch {
+                            viewerState?.scrollToPage(targetPage)
+                        }
+                    },
+                    onCollapse = { showControls = false }
+                )
+            }
         }
     }
 }
@@ -317,11 +509,12 @@ private fun ReaderTopBar(
     title: String,
     recoveryUiState: RecoveryUiState,
     onOpenRecoveryDevDialog: () -> Unit,
+    onToggleFullscreen: () -> Unit,
     onBack: () -> Unit
 ) {
     Surface(
         color = WarmSurface,
-        shadowElevation = 1.dp
+        shadowElevation = 2.dp
     ) {
         Row(
             modifier = Modifier
@@ -354,9 +547,17 @@ private fun ReaderTopBar(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = if (recoveryUiState.isSessionActive) "Recovery Active" else "PDF",
+                    text = if (recoveryUiState.isSessionActive) "Recovery Active" else "PDF Document",
                     style = MaterialTheme.typography.bodySmall,
                     color = if (recoveryUiState.isSessionActive) SageGreenPrimary else CharcoalMuted
+                )
+            }
+
+            IconButton(onClick = onToggleFullscreen) {
+                Icon(
+                    imageVector = Icons.Default.Fullscreen,
+                    contentDescription = "Focus Fullscreen View",
+                    tint = CharcoalPrimary
                 )
             }
 
@@ -379,11 +580,12 @@ private fun ReaderBottomBar(
     totalPages: Int,
     onPreviousClick: () -> Unit,
     onNextClick: () -> Unit,
-    onPageSelected: (Int) -> Unit
+    onPageSelected: (Int) -> Unit,
+    onCollapse: () -> Unit
 ) {
     Surface(
         color = WarmSurface,
-        shadowElevation = 3.dp
+        shadowElevation = 4.dp
     ) {
         Column(
             modifier = Modifier
@@ -392,12 +594,28 @@ private fun ReaderBottomBar(
                 .padding(horizontal = 20.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = stringResource(R.string.page_indicator, currentPage + 1, totalPages),
-                style = MaterialTheme.typography.bodySmall,
-                color = CharcoalSecondary,
-                modifier = Modifier.padding(bottom = 6.dp)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.page_indicator, currentPage + 1, totalPages),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CharcoalSecondary
+                )
+
+                TextButton(
+                    onClick = onCollapse,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "Focus Page",
+                        color = SageGreenPrimary,
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

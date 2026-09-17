@@ -9,15 +9,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.terinit.rhythmicreader.feature.focus.FocusScreen
 import com.terinit.rhythmicreader.feature.library.LibraryScreen
 import com.terinit.rhythmicreader.feature.library.LibraryViewModel
 import com.terinit.rhythmicreader.feature.reader.ReaderScreen
 import com.terinit.rhythmicreader.feature.reader.ReaderViewModel
+import com.terinit.rhythmicreader.feature.recovery.RecoveryUiState
 import com.terinit.rhythmicreader.feature.settings.SettingsScreen
 import com.terinit.rhythmicreader.feature.settings.SettingsViewModel
 
 sealed interface Screen {
     data object Library : Screen
+    data object Focus : Screen
     data class Reader(val bookId: String) : Screen
     data object Settings : Screen
 }
@@ -55,6 +58,40 @@ fun ReaderApp(
                 onDismissMessage = {
                     libraryViewModel.dismissUserMessage()
                 },
+                onNavigate = { currentScreen = it },
+                modifier = modifier.fillMaxSize()
+            )
+        }
+
+        is Screen.Focus -> {
+            val libraryViewModel: LibraryViewModel = viewModel(
+                factory = LibraryViewModel.provideFactory(container.bookRepository)
+            )
+            val libraryUiState by libraryViewModel.uiState.collectAsStateWithLifecycle()
+            val currentSession by container.recoveryCoordinator.currentSession.collectAsStateWithLifecycle()
+            val recoveryUiState = remember(currentSession) {
+                val s = currentSession
+                if (s != null) {
+                    RecoveryUiState(
+                        sessionId = s.sessionId,
+                        status = s.status,
+                        activeSeconds = s.activeSeconds,
+                        requiredActiveSeconds = s.requirement.requiredActiveSeconds,
+                        qualifiedPages = s.qualifiedPages,
+                        requiredQualifiedPages = s.requirement.requiredQualifiedPages
+                    )
+                } else {
+                    RecoveryUiState()
+                }
+            }
+
+            FocusScreen(
+                recoveryUiState = recoveryUiState,
+                recentBook = libraryUiState.books.firstOrNull(),
+                onOpenBook = { bookId ->
+                    currentScreen = Screen.Reader(bookId)
+                },
+                onNavigate = { currentScreen = it },
                 modifier = modifier.fillMaxSize()
             )
         }
@@ -101,6 +138,7 @@ fun ReaderApp(
                 onBack = {
                     currentScreen = Screen.Library
                 },
+                onNavigate = { currentScreen = it },
                 modifier = modifier.fillMaxSize()
             )
         }

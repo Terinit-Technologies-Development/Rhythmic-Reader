@@ -1,6 +1,7 @@
 package com.terinit.rhythmicreader.feature.settings
 
 import androidx.compose.foundation.background
+import com.terinit.rhythmicreader.app.Screen
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -52,7 +53,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.terinit.rhythmicreader.R
 import com.terinit.rhythmicreader.ui.theme.CharcoalMuted
 import com.terinit.rhythmicreader.ui.theme.CharcoalPrimary
@@ -72,11 +75,29 @@ fun SettingsScreen(
     onClearLibrary: () -> Unit,
     onDismissNotification: () -> Unit,
     onBack: () -> Unit,
+    onNavigate: (Screen) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var showResetHistoryDialog by remember { mutableStateOf(false) }
     var showClearLibraryDialog by remember { mutableStateOf(false) }
+    var showIntegrationDialog by remember { mutableStateOf(false) }
+
+    val isRoutineInstalled = remember(context) {
+        val pm = context.packageManager
+        try {
+            pm.getPackageInfo("com.terinit.rhythmicroutine.qa", 0)
+            true
+        } catch (_: Exception) {
+            try {
+                pm.getPackageInfo("com.terinit.rhythmicroutine", 0)
+                true
+            } catch (_: Exception) {
+                false
+            }
+        }
+    }
 
     LaunchedEffect(uiState.userNotification) {
         val note = uiState.userNotification
@@ -92,6 +113,12 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             SettingsTopBar(onBack = onBack)
+        },
+        bottomBar = {
+            com.terinit.rhythmicreader.ui.components.RhythmicBottomBar(
+                currentScreen = Screen.Settings,
+                onNavigate = onNavigate
+            )
         }
     ) { innerPadding ->
         LazyColumn(
@@ -159,6 +186,144 @@ fun SettingsScreen(
                             subtitle = stringResource(R.string.clear_library_desc),
                             isDestructive = true,
                             onClick = { showClearLibraryDialog = true }
+                        )
+                    }
+                }
+            }
+
+            // Recovery integration section
+            item {
+                SettingsSectionHeader(title = "Recovery integration")
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, WarmOutline, RoundedCornerShape(18.dp)),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = WarmSurface)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val launchIntent = context.packageManager.getLaunchIntentForPackage("com.terinit.rhythmicroutine.qa")
+                                        ?: context.packageManager.getLaunchIntentForPackage("com.terinit.rhythmicroutine")
+                                    if (launchIntent != null) {
+                                        context.startActivity(launchIntent)
+                                    } else {
+                                        showIntegrationDialog = true
+                                    }
+                                }
+                                .padding(horizontal = 18.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(SageGreenContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_leaf),
+                                    contentDescription = null,
+                                    tint = SageGreenPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Rhythmic Routine",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = CharcoalPrimary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (isRoutineInstalled) {
+                                        "Connected via Protocol V1 • Tap to open Routine"
+                                    } else {
+                                        "Sync your reading with Rhythmic Routine"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = CharcoalSecondary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isRoutineInstalled) SageGreenLight.copy(alpha = 0.5f)
+                                        else WarmOutlineVariant
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (isRoutineInstalled) SageGreenPrimary
+                                                else CharcoalMuted
+                                            )
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = if (isRoutineInstalled) "Connected" else "Available",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (isRoutineInstalled) SageGreenPrimary else CharcoalMuted
+                                    )
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(color = WarmOutlineVariant, modifier = Modifier.padding(horizontal = 16.dp))
+
+                        // Integration Status Card
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(SageGreenContainer.copy(alpha = 0.45f))
+                                .padding(14.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_leaf),
+                                    contentDescription = null,
+                                    tint = SageGreenPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Connected and syncing",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = CharcoalPrimary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "Your reading activity helps build a calmer, more consistent routine.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = CharcoalSecondary
+                                    )
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(color = WarmOutlineVariant, modifier = Modifier.padding(horizontal = 16.dp))
+
+                        SettingsItemRow(
+                            icon = Icons.Default.Info,
+                            title = "Manage integration",
+                            subtitle = "View permissions, ContentProvider and IPC status",
+                            onClick = { showIntegrationDialog = true }
                         )
                     }
                 }
@@ -290,6 +455,39 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { showClearLibraryDialog = false }) {
                     Text(stringResource(R.string.cancel))
+                }
+            },
+            containerColor = WarmSurface
+        )
+    }
+
+    if (showIntegrationDialog) {
+        AlertDialog(
+            onDismissRequest = { showIntegrationDialog = false },
+            title = {
+                Text(
+                    text = "Rhythmic Routine Integration",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = CharcoalPrimary
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = if (isRoutineInstalled) {
+                            "Rhythmic Routine is detected and paired on this device.\n\nProtocol V1 ContentProvider IPC is active. When a Routine recovery cycle starts, Rhythmic Reader tracks active reading time and qualified page dwell, automatically fulfilling the recovery gate."
+                        } else {
+                            "Rhythmic Routine was not detected on this device.\n\nInstall the companion Rhythmic Routine application to automatically synchronize reading recovery sessions."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = CharcoalSecondary,
+                        lineHeight = 20.sp
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showIntegrationDialog = false }) {
+                    Text("OK", color = SageGreenPrimary)
                 }
             },
             containerColor = WarmSurface

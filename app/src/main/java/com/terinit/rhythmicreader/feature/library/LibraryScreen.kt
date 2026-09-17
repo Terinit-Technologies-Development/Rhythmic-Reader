@@ -69,7 +69,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.terinit.rhythmicreader.R
+import com.terinit.rhythmicreader.app.Screen
 import com.terinit.rhythmicreader.domain.model.Book
+import com.terinit.rhythmicreader.ui.components.RhythmicBottomBar
 import com.terinit.rhythmicreader.ui.theme.CharcoalMuted
 import com.terinit.rhythmicreader.ui.theme.CharcoalPrimary
 import com.terinit.rhythmicreader.ui.theme.CharcoalSecondary
@@ -89,6 +91,7 @@ fun LibraryScreen(
     onRemoveBook: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
     onDismissMessage: () -> Unit,
+    onNavigate: (Screen) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -123,6 +126,12 @@ fun LibraryScreen(
         topBar = {
             LibraryHeader(
                 onNavigateToSettings = onNavigateToSettings
+            )
+        },
+        bottomBar = {
+            RhythmicBottomBar(
+                currentScreen = Screen.Library,
+                onNavigate = onNavigate
             )
         }
     ) { innerPadding ->
