@@ -1,12 +1,31 @@
-*.iml
-.gradle
-/local.properties
-/.idea/
-.DS_Store
-/build
-/app/build
+# Android/Gradle
+.gradle/
+build/
+**/build/
+local.properties
 /captures
 .externalNativeBuild
 .cxx
-local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Signing
+*.jks
 *.keystore
+*.p12
+*.pem
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Generated packages
+*.apk
+*.aab
+
+# OS
+.DS_Store
+Thumbs.db
