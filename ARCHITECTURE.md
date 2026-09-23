@@ -37,9 +37,10 @@ $$\begin{aligned}
 │            [Reading & Recovery Engine]                 │
 │                                                        │
 │  ┌──────────────────┐          ┌────────────────────┐  │
-│  │   UI Layer       │          │   Recovery Engine  │  │
+│  │   UI Layer       │          │ Reading Evidence   │  │
 │  │  - LibraryView   │          │  - ActiveTracker   │  │
-│  │  - FocusView     │◄────────►│  - PageEngine      │  │
+│  │  - TodayView     │◄────────►│  - PageEngine      │  │
+│  │  - FocusView     │          │  - Daily Ledger    │  │
 │  │  - ImmersivePDF  │          │  - Coordinator     │  │
 │  └────────┬─────────┘          └─────────┬──────────┘  │
 │           │                              │             │
@@ -51,9 +52,11 @@ $$\begin{aligned}
 │                                          │             │
 └──────────────────────────────────────────┼─────────────┘
                                            │
-                            2. Query Durable Status
-                            content://com.terinit.rhythmicreader.recovery/status
-                            (Signature permission protected)
+                     2. Query Recovery Status (V1)
+                     content://com.terinit.rhythmicreader.recovery/sessions/{id}
+                     3. Query Daily Evidence (V2)
+                     content://com.terinit.rhythmicreader.evidence/daily/{dateKey}
+                             (Signature permission protected)
                                            ▼
 ┌────────────────────────────────────────────────────────┐
 │                   Rhythmic Routine                     │
@@ -83,8 +86,8 @@ $$\begin{aligned}
 - Discrete, translucent floating controls provide single-page stepping (`<` `Page X of Y` `>`) to focus attention on one page at a time without toolbar distractions.
 - Animated overlays smoothly display the page scrubber and recovery status badge on user interaction.
 
-### D. Recovery Engine & Qualification Rules
-The recovery session engine validates that the user genuinely engaged with the text, rejecting superficial scrolling:
+### D. Reading Evidence & Qualification Rules
+The shared reading engine validates that the user genuinely engaged with the text, rejecting superficial scrolling:
 
 1. **Active-Time Qualification (`ActiveReadingTracker`):**
    - Tracks real elapsed time using a monotonic clock (`MonotonicClock`).
@@ -97,7 +100,9 @@ The recovery session engine validates that the user genuinely engaged with the t
    - **Double-Counting Prevention:** Revisiting an already-qualified page does not increment the qualified page count.
 
 3. **Dual-Factor Completion Rule:**
-   $$\text{Session Complete} \iff (\text{Active Seconds} \ge \text{Target Seconds}) \land (\text{Qualified Pages} \ge \text{Target Pages})$$
+    $$\text{Session Complete} \iff (\text{Active Seconds} \ge \text{Target Seconds}) \land (\text{Qualified Pages} \ge \text{Target Pages})$$
+
+4. **Daily Evidence Projection:** The same verified-reading deltas are recorded in the local-date ledger even when no recovery session exists. If a recovery session is active, the same measured event also updates that session; there is still only one reading timer and one page-qualification engine.
 
 ---
 
@@ -120,14 +125,20 @@ Inter-process communication between Rhythmic Routine and Rhythmic Reader uses st
    - Component: `com.terinit.rhythmicreader/.integration.rhythmic.RecoveryEntryActivity`
    - Payload: Extras specifying `session_id`, `required_active_minutes`, and `required_qualified_pages`.
 
-3. **Read-Only ContentProvider:**
-   Rhythmic Routine queries durable session status at:
-   `content://com.terinit.rhythmicreader.recovery/status`
-   The provider returns only generic status fields (`status`, `active_seconds`, `qualified_pages`, `meets_requirement`). Document titles, text, and user reading choices are never exposed.
+3. **Read-Only Recovery ContentProvider (V1):**
+    Rhythmic Routine queries durable recovery session status at:
+    `content://com.terinit.rhythmicreader.recovery/sessions/{sessionId}`
+    Its V1 session semantics are retained.
+
+## 5. Daily Evidence Protocol V2
+
+The separate exported provider `com.terinit.rhythmicreader.evidence` accepts exact local-date queries at `content://com.terinit.rhythmicreader.evidence/daily/{dateKey}`. It returns only `protocolVersion`, `dateKey`, `verifiedActiveSeconds`, `qualifiedPages`, and `updatedAtEpochMs`, protected by the shared signature permission. It exposes no document or library metadata and contains no Routine policy.
+
+See [Daily Evidence Protocol V2](docs/protocol/RHYTHMIC_READER_DAILY_EVIDENCE_PROTOCOL_V2.md) for the complete contract.
 
 ---
 
-## 5. Process-Death & Crash Resilience
+## 6. Process-Death & Crash Resilience
 
 - Active reading time and qualified pages are persisted periodically to Room SQLite.
 - Upon configuration change (rotation, split-screen) or activity destruction, `saveFinalProgress()` flushes the exact page index and accumulated session dwell to disk.

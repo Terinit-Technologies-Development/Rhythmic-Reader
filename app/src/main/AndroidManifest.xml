@@ -45,6 +45,13 @@
             android:authorities="com.terinit.rhythmicreader.recovery"
             android:exported="true"
             android:readPermission="com.terinit.rhythmicreader.permission.RECOVERY" />
+
+        <provider
+            android:name=".integration.rhythmic.DailyEvidenceProvider"
+            android:authorities="com.terinit.rhythmicreader.evidence"
+            android:exported="true"
+            android:readPermission="com.terinit.rhythmicreader.permission.RECOVERY"
+            android:writePermission="com.terinit.rhythmicreader.permission.RECOVERY" />
     </application>
 
 </manifest>

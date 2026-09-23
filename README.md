@@ -20,6 +20,7 @@ Rhythmic Reader does not sell reading time for screen time. When paired with Rhy
 ### 1. Standalone Offline PDF Reader
 - **Storage Access Framework (SAF):** Import PDF documents directly using Android's native system picker (`ACTION_OPEN_DOCUMENT`). Documents remain securely in their original storage provider; no files are copied or uploaded.
 - **Local Progress Persistence:** Reading position, total pages, and last viewed timestamps are recorded in a private, on-device SQLite database via Android Room.
+- **Today's Reading:** A dedicated daily surface shows verified active reading time and distinct dwell-qualified pages against the daily foundations.
 - **True Fullscreen Immersion:** The reader view expands edge-to-edge across 100% of the display. Toolbars and chrome stay out of the way.
 - **Single-Page Focus:** Floating, tactile stepping controls (`<` `Page X of Y` `>`) let you focus on one page at a time without distracting sliders or navigation drawers.
 - **Zero Account & Zero Cloud:** No signups, logins, remote servers, ads, telemetry, or analytics SDKs.
@@ -49,6 +50,8 @@ Policy decision: cooldown elapsed AND recovery complete → unlock re-entry
 - **Reader Never Issues Access Leases:** Access tokens and leases do not exist in Reader.
 - **No Screen-Time Currency:** Recovery reading is a calm gate, never a tradeable currency.
 
+Protocol V2 also exposes numerical daily reading evidence by exact local date through a separate signature-protected, read-only provider. The existing V1 recovery-session provider remains unchanged.
+
 ---
 
 ## Recovery Qualification Model
@@ -68,7 +71,7 @@ To ensure reading recovery represents genuine engagement rather than unattended 
 | **Privacy** | 100% local-first. No network calls, telemetry SDKs, or cloud endpoints. See [PRIVACY.md](PRIVACY.md). |
 | **Document Security** | Scoped Storage Access Framework permissions. PDF contents are never inspected by background services or shared via IPC. |
 | **Isolation** | PDF rendering runs inside AndroidX PDF's sandboxed isolated process (`:pdfDocumentService`). |
-| **Cross-App IPC** | Protected by custom signature-level permission (`com.terinit.rhythmicreader.permission.RECOVERY`). See [Protocol V1](docs/protocol/RHYTHMIC_READER_PROTOCOL_V1.md). |
+| **Cross-App IPC** | Protected by custom signature-level permission (`com.terinit.rhythmicreader.permission.RECOVERY`). See [Protocol V1](docs/protocol/RHYTHMIC_READER_PROTOCOL_V1.md) and [Daily Evidence Protocol V2](docs/protocol/RHYTHMIC_READER_DAILY_EVIDENCE_PROTOCOL_V2.md). |
 | **Design** | Full architecture documentation in [ARCHITECTURE.md](ARCHITECTURE.md). |
 
 ---

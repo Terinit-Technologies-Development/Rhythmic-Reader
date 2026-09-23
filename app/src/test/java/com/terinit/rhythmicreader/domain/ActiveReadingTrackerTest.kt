@@ -49,6 +49,17 @@ class ActiveReadingTrackerTest {
     }
 
     @Test
+    fun immediatePauseAfterResumeStillStopsTracking() {
+        tracker.updateQualification(true)
+
+        tracker.pause()
+        assertFalse(tracker.isTracking())
+
+        clock.advanceBy(30_000L)
+        assertEquals(0L, tracker.totalMs())
+    }
+
+    @Test
     fun pausedInterval_doesNotAccumulate() {
         tracker.updateQualification(true)
         clock.advanceBy(3_000L)

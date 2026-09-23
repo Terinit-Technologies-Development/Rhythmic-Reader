@@ -17,9 +17,12 @@ import com.terinit.rhythmicreader.feature.reader.ReaderViewModel
 import com.terinit.rhythmicreader.feature.recovery.RecoveryUiState
 import com.terinit.rhythmicreader.feature.settings.SettingsScreen
 import com.terinit.rhythmicreader.feature.settings.SettingsViewModel
+import com.terinit.rhythmicreader.feature.today.TodayReadingScreen
+import com.terinit.rhythmicreader.feature.today.TodayReadingViewModel
 
 sealed interface Screen {
     data object Library : Screen
+    data object Today : Screen
     data object Focus : Screen
     data class Reader(val bookId: String) : Screen
     data object Settings : Screen
@@ -58,6 +61,21 @@ fun ReaderApp(
                 onDismissMessage = {
                     libraryViewModel.dismissUserMessage()
                 },
+                onNavigate = { currentScreen = it },
+                modifier = modifier.fillMaxSize()
+            )
+        }
+
+        is Screen.Today -> {
+            val todayReadingViewModel: TodayReadingViewModel = viewModel(
+                factory = TodayReadingViewModel.provideFactory(
+                    repository = container.dailyReadingEvidenceRepository,
+                    localDateClock = container.localDateClock
+                )
+            )
+            val uiState by todayReadingViewModel.uiState.collectAsStateWithLifecycle()
+            TodayReadingScreen(
+                uiState = uiState,
                 onNavigate = { currentScreen = it },
                 modifier = modifier.fillMaxSize()
             )
@@ -103,7 +121,8 @@ fun ReaderApp(
                     bookId = screen.bookId,
                     bookRepository = container.bookRepository,
                     pdfDocumentRepository = container.pdfDocumentRepository,
-                    recoveryCoordinator = container.recoveryCoordinator
+                    recoveryCoordinator = container.recoveryCoordinator,
+                    screenStateReader = container.screenStateReader
                 )
             )
             val uiState by readerViewModel.uiState.collectAsStateWithLifecycle()
