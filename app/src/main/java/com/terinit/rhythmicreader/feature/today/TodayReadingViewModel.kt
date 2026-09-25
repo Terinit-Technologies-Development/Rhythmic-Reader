@@ -58,7 +58,7 @@ class TodayReadingViewModel(
                 _uiState.update {
                     it.copy(nextRoutineTarget = nextTarget, routineTargetLoaded = true)
                 }
-                delay(30_000L)
+                delay(15_000L)
             }
         }
     }

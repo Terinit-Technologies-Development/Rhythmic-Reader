@@ -171,13 +171,13 @@ private fun NextRoutineTargetCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Next recovery target",
+                        text = "Reading quota",
                         style = MaterialTheme.typography.titleMedium,
                         color = CharcoalPrimary,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = "Preview · Routine cooldown",
+                        text = "Daily verified reading vs Routine’s next cooldown",
                         style = MaterialTheme.typography.bodySmall,
                         color = CharcoalSecondary,
                     )
@@ -201,7 +201,7 @@ private fun NextRoutineTargetCard(
                     color = CharcoalSecondary,
                 )
                 preview == null -> Text(
-                    text = "Routine’s next target is unavailable. Open Rhythmic Routine to sync its current policy.",
+                    text = "Routine hasn’t shared a target yet. Open Rhythmic Routine once to publish its current quota.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = CharcoalSecondary,
                 )
