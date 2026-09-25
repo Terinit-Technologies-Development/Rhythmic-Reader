@@ -143,11 +143,19 @@ fun RecoveryCard(
                 ) {
                     if (uiState.isSessionComplete) {
                         Text(
-                            text = "Your reading requirement has been completed.",
+                            text = "Both reading targets are met. Rhythmic Routine controls when access resumes.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = CharcoalSecondary
                         )
                     } else {
+                        Text(
+                            text = "Meet both targets below to complete this recovery.",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = CharcoalSecondary
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+
                         // Active reading metric
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -155,7 +163,7 @@ fun RecoveryCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Active reading",
+                                text = "Verified active reading",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = CharcoalSecondary
                             )
@@ -176,6 +184,11 @@ fun RecoveryCard(
                             color = SageGreenPrimary,
                             trackColor = SageGreenLight,
                             strokeCap = StrokeCap.Round
+                        )
+                        Text(
+                            text = "Counts while a loaded document is visible and the screen is interactive.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CharcoalSecondary
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -208,6 +221,11 @@ fun RecoveryCard(
                             color = SageGreenPrimary,
                             trackColor = SageGreenLight,
                             strokeCap = StrokeCap.Round
+                        )
+                        Text(
+                            text = "A page counts after it passes Reader’s dwell check.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CharcoalSecondary
                         )
                     }
                 }

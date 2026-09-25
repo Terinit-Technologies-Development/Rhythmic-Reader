@@ -9,6 +9,6 @@ class ScreenStateReader(
     private val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
 
     fun isInteractive(): Boolean {
-        return powerManager?.isInteractive ?: true
+        return powerManager?.isInteractive ?: false
     }
 }

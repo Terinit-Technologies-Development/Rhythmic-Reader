@@ -4,15 +4,19 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.terinit.rhythmicreader.data.db.ReaderDatabase
+import com.terinit.rhythmicreader.data.repository.DailyReadingEvidenceRepository
+import com.terinit.rhythmicreader.data.repository.DefaultDailyReadingEvidenceRepository
 import com.terinit.rhythmicreader.data.repository.DefaultRecoveryRepository
 import com.terinit.rhythmicreader.data.repository.RecoveryRepository
 import com.terinit.rhythmicreader.domain.model.RecoveryRequirement
 import com.terinit.rhythmicreader.domain.model.RecoveryStatus
 import com.terinit.rhythmicreader.domain.recovery.ActiveReadingTracker
+import com.terinit.rhythmicreader.domain.recovery.DailyEvidenceRecorder
 import com.terinit.rhythmicreader.domain.recovery.PageQualificationEngine
 import com.terinit.rhythmicreader.domain.recovery.QualificationPolicy
 import com.terinit.rhythmicreader.domain.recovery.RecoveryCoordinator
 import com.terinit.rhythmicreader.test.FakeMonotonicClock
+import com.terinit.rhythmicreader.domain.time.DeviceLocalDateClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,6 +32,8 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.time.Instant
+import java.time.ZoneId
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -35,7 +41,9 @@ class RecoveryCoordinatorTest {
 
     private lateinit var db: ReaderDatabase
     private lateinit var repository: RecoveryRepository
+    private lateinit var dailyRepository: DailyReadingEvidenceRepository
     private lateinit var clock: FakeMonotonicClock
+    private lateinit var localDateClock: DeviceLocalDateClock
     private lateinit var tracker: ActiveReadingTracker
     private lateinit var engine: PageQualificationEngine
     private lateinit var testScope: CoroutineScope
@@ -48,8 +56,10 @@ class RecoveryCoordinatorTest {
             .allowMainThreadQueries()
             .build()
         repository = DefaultRecoveryRepository(db.recoveryDao())
+        dailyRepository = DefaultDailyReadingEvidenceRepository(db.dailyReadingEvidenceDao())
         clock = FakeMonotonicClock(100_000L)
-        tracker = ActiveReadingTracker(clock)
+        localDateClock = DeviceLocalDateClock(clock) { ZoneId.of("UTC") }
+        tracker = ActiveReadingTracker(clock, clock)
         engine = PageQualificationEngine(
             clock = clock,
             policy = QualificationPolicy(
@@ -63,6 +73,8 @@ class RecoveryCoordinatorTest {
             repository = repository,
             activeReadingTracker = tracker,
             pageQualificationEngine = engine,
+            dailyEvidenceRecorder = DailyEvidenceRecorder(dailyRepository, localDateClock, clock),
+            localDateClock = localDateClock,
             scope = testScope,
             dispatcher = Dispatchers.Unconfined
         )
@@ -79,6 +91,151 @@ class RecoveryCoordinatorTest {
         coordinator.updateScreenInteractive(true)
         coordinator.updateDocumentLoaded(true, bookId)
         coordinator.updateReaderVisible(true)
+    }
+
+    @Test
+    fun ordinaryCredibleReadingRecordsDailyTimeWithoutRecoverySession() = runBlocking {
+        setFullyQualifyingState()
+        clock.advanceBy(42_000L)
+        coordinator.performCheckpoint()
+
+        val today = dailyRepository.readDailySnapshot(localDateClock.todayDateKey())
+        assertEquals(null, coordinator.currentSession.value)
+        assertEquals(42L, today?.verifiedActiveSeconds)
+        assertEquals(0, today?.qualifiedPages)
+    }
+
+    @Test
+    fun ordinaryPageQualifiesOnlyAfterExistingDwellRequirement() = runBlocking {
+        setFullyQualifyingState("ordinary-book")
+        coordinator.onVisiblePageChanged("ordinary-book", 4)
+
+        clock.advanceBy(14_999L)
+        coordinator.performCheckpoint()
+        assertEquals(0, dailyRepository.readDailySnapshot(localDateClock.todayDateKey())?.qualifiedPages)
+
+        clock.advanceBy(1L)
+        coordinator.performCheckpoint()
+        assertEquals(1, dailyRepository.readDailySnapshot(localDateClock.todayDateKey())?.qualifiedPages)
+    }
+
+    @Test
+    fun invalidCredibilityStatesDoNotCreateDailyTimeEvidence() = runBlocking {
+        coordinator.updateAppForeground(true)
+        coordinator.updateScreenInteractive(false)
+        coordinator.updateDocumentLoaded(true, "book-guard")
+        coordinator.updateReaderVisible(true)
+        clock.advanceBy(30_000L)
+        coordinator.performCheckpoint()
+
+        coordinator.updateScreenInteractive(true)
+        coordinator.updateAppForeground(false)
+        clock.advanceBy(30_000L)
+        coordinator.updateAppForeground(true)
+
+        coordinator.updateReaderVisible(false)
+        clock.advanceBy(30_000L)
+        coordinator.updateReaderVisible(true)
+        coordinator.updateDocumentLoaded(false, null)
+        clock.advanceBy(30_000L)
+        coordinator.performCheckpoint()
+
+        assertEquals(null, dailyRepository.readDailySnapshot(localDateClock.todayDateKey()))
+    }
+
+    @Test
+    fun recoveryAndDailyLedgersProjectTheSameMeasuredReadingDelta() = runBlocking {
+        coordinator.startSession(
+            RecoveryRequirement(requiredActiveSeconds = 120, requiredQualifiedPages = 2),
+            sessionId = "session-dual-projection"
+        )
+        setFullyQualifyingState("book-dual")
+        clock.advanceBy(40_000L)
+        coordinator.performCheckpoint()
+
+        val daily = dailyRepository.readDailySnapshot(localDateClock.todayDateKey())
+        val recovery = repository.getSession("session-dual-projection")
+        assertEquals(40L, daily?.verifiedActiveSeconds)
+        assertEquals(40_000L, recovery?.accumulatedActiveMs)
+        assertEquals(RecoveryStatus.ACTIVE, recovery?.status)
+    }
+
+    @Test
+    fun startingRecoveryDuringOrdinaryReadingProjectsOnlyPostStartTimeToTheSession() = runBlocking {
+        setFullyQualifyingState("book-session-start")
+        clock.advanceBy(10_000L)
+        coordinator.performCheckpoint()
+
+        coordinator.startSession(
+            RecoveryRequirement(requiredActiveSeconds = 120, requiredQualifiedPages = 2),
+            sessionId = "session-start-boundary"
+        )
+        clock.advanceBy(20_000L)
+        coordinator.performCheckpoint()
+
+        assertEquals(30L, dailyRepository.readDailySnapshot(localDateClock.todayDateKey())?.verifiedActiveSeconds)
+        assertEquals(20_000L, repository.getSession("session-start-boundary")?.accumulatedActiveMs)
+    }
+
+    @Test
+    fun pageOnlyRecoveryProjectionDoesNotHideLiveSessionTime() = runBlocking {
+        coordinator.startSession(
+            RecoveryRequirement(requiredActiveSeconds = 120, requiredQualifiedPages = 2),
+            sessionId = "session-page-projection"
+        )
+        setFullyQualifyingState("book-page-projection")
+        coordinator.onVisiblePageChanged("book-page-projection", 1)
+        clock.advanceBy(16_000L)
+        coordinator.onVisiblePageChanged("book-page-projection", 2)
+
+        assertEquals(1, repository.getSession("session-page-projection")?.qualifiedPages)
+        assertEquals(16L, coordinator.getActiveReadingSeconds())
+
+        clock.advanceBy(4_000L)
+        coordinator.performCheckpoint()
+        assertEquals(20_000L, repository.getSession("session-page-projection")?.accumulatedActiveMs)
+        assertEquals(20L, dailyRepository.readDailySnapshot(localDateClock.todayDateKey())?.verifiedActiveSeconds)
+    }
+
+    @Test
+    fun sameOpenDocumentContinuesIntoNewLocalDateWithoutMutatingYesterday() = runBlocking {
+        val beforeMidnight = Instant.parse("2026-09-22T23:59:50Z").toEpochMilli()
+        clock.set(beforeMidnight)
+        setFullyQualifyingState("book-midnight")
+        coordinator.onVisiblePageChanged("book-midnight", 12)
+
+        clock.advanceBy(30_000L)
+        coordinator.performCheckpoint()
+
+        val yesterday = dailyRepository.readDailySnapshot("2026-09-22")
+        val todayAfterRollover = dailyRepository.readDailySnapshot("2026-09-23")
+        assertEquals(10L, yesterday?.verifiedActiveSeconds)
+        assertEquals(20L, todayAfterRollover?.verifiedActiveSeconds)
+        assertEquals(0, todayAfterRollover?.qualifiedPages)
+
+        clock.advanceBy(15_000L)
+        coordinator.performCheckpoint()
+        assertEquals(10L, dailyRepository.readDailySnapshot("2026-09-22")?.verifiedActiveSeconds)
+        assertEquals(35L, dailyRepository.readDailySnapshot("2026-09-23")?.verifiedActiveSeconds)
+        assertEquals(1, dailyRepository.readDailySnapshot("2026-09-23")?.qualifiedPages)
+    }
+
+    @Test
+    fun repeatedCheckpointsAndBackgroundResumeDoNotDuplicateCommittedTime() = runBlocking {
+        setFullyQualifyingState()
+        clock.advanceBy(20_000L)
+        coordinator.performCheckpoint()
+        coordinator.performCheckpoint()
+        assertEquals(20L, dailyRepository.readDailySnapshot(localDateClock.todayDateKey())?.verifiedActiveSeconds)
+
+        coordinator.updateAppForeground(false)
+        clock.advanceBy(60_000L)
+        coordinator.performCheckpoint()
+        coordinator.updateAppForeground(true)
+        clock.advanceBy(10_000L)
+        coordinator.performCheckpoint()
+
+        assertEquals(30L, dailyRepository.readDailySnapshot(localDateClock.todayDateKey())?.verifiedActiveSeconds)
     }
 
     @Test
@@ -243,12 +400,15 @@ class RecoveryCoordinatorTest {
 
         // New Coordinator instantiated in new process
         val newClock = FakeMonotonicClock(clock.nowMs())
-        val newTracker = ActiveReadingTracker(newClock)
+        val newLocalDateClock = DeviceLocalDateClock(newClock) { ZoneId.of("UTC") }
+        val newTracker = ActiveReadingTracker(newClock, newClock)
         val newEngine = PageQualificationEngine(newClock)
         val newCoordinator = RecoveryCoordinator(
             repository = repository,
             activeReadingTracker = newTracker,
             pageQualificationEngine = newEngine,
+            dailyEvidenceRecorder = DailyEvidenceRecorder(dailyRepository, newLocalDateClock, newClock),
+            localDateClock = newLocalDateClock,
             scope = testScope,
             dispatcher = Dispatchers.Unconfined
         )

@@ -129,8 +129,11 @@ fun ReaderScreen(
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
                     viewModel.onAppForegroundChanged(true)
-                    viewModel.onScreenInteractiveChanged(true)
-                    viewModel.onReaderVisibleChanged(true)
+                    viewModel.refreshScreenInteractive()
+                    viewModel.onReaderVisibleChanged(
+                        uiState.pdfDocument != null && viewerState != null &&
+                            !uiState.isLoading && !showRecoveryDevDialog
+                    )
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     viewModel.onAppForegroundChanged(false)
@@ -145,8 +148,7 @@ fun ReaderScreen(
         }
     }
 
-    LaunchedEffect(viewerState, recoveryUiState.sessionId) {
-        if (recoveryUiState.sessionId == null) return@LaunchedEffect
+    LaunchedEffect(viewerState) {
         snapshotFlow { viewerState?.firstVisiblePage ?: -1 }
             .distinctUntilChanged()
             .collect { page ->
@@ -154,6 +156,19 @@ fun ReaderScreen(
                     viewModel.onPageChanged(page)
                 }
             }
+    }
+
+    LaunchedEffect(
+        viewerState,
+        uiState.pdfDocument,
+        uiState.isLoading,
+        uiState.isDocumentUnavailable,
+        showRecoveryDevDialog
+    ) {
+        viewModel.onReaderVisibleChanged(
+            isVisible = viewerState != null && uiState.pdfDocument != null &&
+                !uiState.isLoading && !uiState.isDocumentUnavailable && !showRecoveryDevDialog
+        )
     }
 
     // Save final page upon back / exit
@@ -164,6 +179,7 @@ fun ReaderScreen(
 
     DisposableEffect(Unit) {
         onDispose {
+            viewModel.onReaderVisibleChanged(false)
             viewModel.saveFinalProgress()
         }
     }
@@ -330,7 +346,7 @@ fun ReaderScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Recovery: ${recoveryUiState.activeMinutesDisplay} • ${recoveryUiState.qualifiedPagesDisplay} pages",
+                                text = "Read: ${recoveryUiState.activeMinutesDisplay} · Pages: ${recoveryUiState.qualifiedPagesDisplay}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = SageGreenPrimary,
                                 fontWeight = FontWeight.SemiBold

@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
@@ -70,6 +71,13 @@ fun RhythmicBottomBar(
                 label = "Library",
                 isSelected = currentScreen is Screen.Library,
                 onClick = { onNavigate(Screen.Library) }
+            )
+
+            BottomNavItem(
+                icon = Icons.Default.Today,
+                label = "Today",
+                isSelected = currentScreen is Screen.Today,
+                onClick = { onNavigate(Screen.Today) }
             )
 
             BottomNavItem(

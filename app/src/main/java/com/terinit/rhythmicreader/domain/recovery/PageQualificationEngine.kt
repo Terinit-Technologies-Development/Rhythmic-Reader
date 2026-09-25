@@ -22,6 +22,7 @@ class PageQualificationEngine(
 
     private val recentTransitions = ArrayDeque<Long>()
 
+    @Synchronized
     fun onPageChanged(newPage: Int): PageQualificationResult {
         val now = clock.nowMs()
 
@@ -48,6 +49,7 @@ class PageQualificationEngine(
      * Checks if the currently viewed page has satisfied dwell requirements
      * without having to turn the page. Emits Candidate at most once per continuous dwell.
      */
+    @Synchronized
     fun checkCurrentPageDwell(): PageQualificationResult {
         val now = clock.nowMs()
         val page = currentPage ?: return PageQualificationResult.None
@@ -63,6 +65,7 @@ class PageQualificationEngine(
         return PageQualificationResult.None
     }
 
+    @Synchronized
     fun onPause(): PageQualificationResult {
         val now = clock.nowMs()
         val result = if (currentPage != null && candidateEmittedForCurrentDwell != currentPage) {
@@ -75,9 +78,19 @@ class PageQualificationEngine(
         return result
     }
 
+    @Synchronized
     fun onResume() {
         if (currentPage != null) {
             pageEnteredAtMs = clock.nowMs()
+        }
+    }
+
+    /** Starts a fresh dwell on the current page at a local-day boundary. */
+    @Synchronized
+    fun restartCurrentDwell() {
+        if (currentPage != null) {
+            pageEnteredAtMs = clock.nowMs()
+            candidateEmittedForCurrentDwell = null
         }
     }
 
@@ -109,6 +122,7 @@ class PageQualificationEngine(
         }
     }
 
+    @Synchronized
     fun reset() {
         currentPage = null
         pageEnteredAtMs = null

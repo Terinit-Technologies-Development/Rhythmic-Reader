@@ -7,11 +7,13 @@ data class ReadingActivityState(
     val documentLoaded: Boolean = false,
     val readerVisible: Boolean = false
 ) {
-    val qualifiesForActiveTime: Boolean
+    val qualifiesForVerifiedReading: Boolean
         get() =
-            sessionActive &&
             appForeground &&
             screenInteractive &&
             documentLoaded &&
             readerVisible
+
+    val qualifiesForActiveTime: Boolean
+        get() = qualifiesForVerifiedReading
 }

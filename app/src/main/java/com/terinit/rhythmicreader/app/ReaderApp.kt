@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.terinit.rhythmicreader.domain.model.RecoverySession
 import com.terinit.rhythmicreader.feature.focus.FocusScreen
 import com.terinit.rhythmicreader.feature.library.LibraryScreen
 import com.terinit.rhythmicreader.feature.library.LibraryViewModel
@@ -17,9 +18,12 @@ import com.terinit.rhythmicreader.feature.reader.ReaderViewModel
 import com.terinit.rhythmicreader.feature.recovery.RecoveryUiState
 import com.terinit.rhythmicreader.feature.settings.SettingsScreen
 import com.terinit.rhythmicreader.feature.settings.SettingsViewModel
+import com.terinit.rhythmicreader.feature.today.TodayReadingScreen
+import com.terinit.rhythmicreader.feature.today.TodayReadingViewModel
 
 sealed interface Screen {
     data object Library : Screen
+    data object Today : Screen
     data object Focus : Screen
     data class Reader(val bookId: String) : Screen
     data object Settings : Screen
@@ -63,6 +67,27 @@ fun ReaderApp(
             )
         }
 
+        is Screen.Today -> {
+            val todayReadingViewModel: TodayReadingViewModel = viewModel(
+                factory = TodayReadingViewModel.provideFactory(
+                    repository = container.dailyReadingEvidenceRepository,
+                    localDateClock = container.localDateClock,
+                    routineAttentionPreviewClient = container.routineAttentionPreviewClient,
+                )
+            )
+            val uiState by todayReadingViewModel.uiState.collectAsStateWithLifecycle()
+            val currentSession by container.recoveryCoordinator.currentSession.collectAsStateWithLifecycle()
+            val recoveryUiState = remember(currentSession) {
+                currentSession.toRecoveryUiState()
+            }
+            TodayReadingScreen(
+                uiState = uiState,
+                recoveryUiState = recoveryUiState,
+                onNavigate = { currentScreen = it },
+                modifier = modifier.fillMaxSize()
+            )
+        }
+
         is Screen.Focus -> {
             val libraryViewModel: LibraryViewModel = viewModel(
                 factory = LibraryViewModel.provideFactory(container.bookRepository)
@@ -70,19 +95,7 @@ fun ReaderApp(
             val libraryUiState by libraryViewModel.uiState.collectAsStateWithLifecycle()
             val currentSession by container.recoveryCoordinator.currentSession.collectAsStateWithLifecycle()
             val recoveryUiState = remember(currentSession) {
-                val s = currentSession
-                if (s != null) {
-                    RecoveryUiState(
-                        sessionId = s.sessionId,
-                        status = s.status,
-                        activeSeconds = s.activeSeconds,
-                        requiredActiveSeconds = s.requirement.requiredActiveSeconds,
-                        qualifiedPages = s.qualifiedPages,
-                        requiredQualifiedPages = s.requirement.requiredQualifiedPages
-                    )
-                } else {
-                    RecoveryUiState()
-                }
+                currentSession.toRecoveryUiState()
             }
 
             FocusScreen(
@@ -103,7 +116,8 @@ fun ReaderApp(
                     bookId = screen.bookId,
                     bookRepository = container.bookRepository,
                     pdfDocumentRepository = container.pdfDocumentRepository,
-                    recoveryCoordinator = container.recoveryCoordinator
+                    recoveryCoordinator = container.recoveryCoordinator,
+                    screenStateReader = container.screenStateReader
                 )
             )
             val uiState by readerViewModel.uiState.collectAsStateWithLifecycle()
@@ -144,3 +158,14 @@ fun ReaderApp(
         }
     }
 }
+
+private fun RecoverySession?.toRecoveryUiState(): RecoveryUiState = this?.let { session ->
+    RecoveryUiState(
+        sessionId = session.sessionId,
+        status = session.status,
+        activeSeconds = session.activeSeconds,
+        requiredActiveSeconds = session.requirement.requiredActiveSeconds,
+        qualifiedPages = session.qualifiedPages,
+        requiredQualifiedPages = session.requirement.requiredQualifiedPages
+    )
+} ?: RecoveryUiState()

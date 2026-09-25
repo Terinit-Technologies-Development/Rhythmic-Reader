@@ -2,6 +2,7 @@ package com.terinit.rhythmicreader.app
 
 import android.app.Application
 import android.os.Build
+import kotlinx.coroutines.launch
 
 class RhythmicReaderApplication : Application() {
 
@@ -18,6 +19,9 @@ class RhythmicReaderApplication : Application() {
             container = AppContainer(
                 applicationContext
             )
+            container.appScope.launch {
+                container.dailyEvidenceRecorder.ensureToday()
+            }
         }
     }
 

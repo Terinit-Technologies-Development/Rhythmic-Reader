@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.terinit.rhythmicreader.data.repository.BookRepository
 import com.terinit.rhythmicreader.data.repository.PdfDocumentRepository
+import com.terinit.rhythmicreader.data.system.ScreenStateReader
 import com.terinit.rhythmicreader.domain.model.RecoveryRequirement
 import com.terinit.rhythmicreader.domain.model.RecoverySession
 import com.terinit.rhythmicreader.domain.model.RecoveryStatus
@@ -27,7 +28,8 @@ class ReaderViewModel(
     private val bookId: String,
     private val bookRepository: BookRepository,
     private val pdfDocumentRepository: PdfDocumentRepository,
-    private val recoveryCoordinator: RecoveryCoordinator? = null
+    private val recoveryCoordinator: RecoveryCoordinator? = null,
+    private val screenStateReader: ScreenStateReader? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReaderUiState())
@@ -84,6 +86,9 @@ class ReaderViewModel(
 
     private fun loadDocument() {
         viewModelScope.launch {
+            recoveryCoordinator?.updateReaderVisible(false)
+            recoveryCoordinator?.updateDocumentLoaded(false, null)
+            recoveryCoordinator?.performCheckpoint()
             _uiState.update { it.copy(isLoading = true, isDocumentUnavailable = false, errorMessage = null) }
             val book = bookRepository.getBook(bookId)
             if (book == null) {
@@ -116,7 +121,6 @@ class ReaderViewModel(
                     )
                 }
                 recoveryCoordinator?.updateDocumentLoaded(true, bookId)
-                recoveryCoordinator?.updateReaderVisible(true)
                 recoveryCoordinator?.onVisiblePageChanged(bookId, initialPage)
             } catch (e: Exception) {
                 recoveryCoordinator?.updateDocumentLoaded(false, null)
@@ -153,14 +157,21 @@ class ReaderViewModel(
 
     fun onAppForegroundChanged(isForeground: Boolean) {
         recoveryCoordinator?.updateAppForeground(isForeground)
+        if (!isForeground) recoveryCoordinator?.flushPendingEvidenceAsync()
     }
 
     fun onScreenInteractiveChanged(isInteractive: Boolean) {
         recoveryCoordinator?.updateScreenInteractive(isInteractive)
+        if (!isInteractive) recoveryCoordinator?.flushPendingEvidenceAsync()
+    }
+
+    fun refreshScreenInteractive() {
+        onScreenInteractiveChanged(screenStateReader?.isInteractive() ?: false)
     }
 
     fun onReaderVisibleChanged(isVisible: Boolean) {
         recoveryCoordinator?.updateReaderVisible(isVisible)
+        if (!isVisible) recoveryCoordinator?.flushPendingEvidenceAsync()
     }
 
     fun startTestRecovery(requiredMinutes: Long = 30, requiredPages: Int = 10) {
@@ -177,6 +188,9 @@ class ReaderViewModel(
     fun saveFinalProgress() {
         val current = _uiState.value.currentPage
         persistPage(current)
+        viewModelScope.launch {
+            recoveryCoordinator?.performCheckpoint()
+        }
     }
 
     private fun persistPage(page: Int) {
@@ -198,10 +212,10 @@ class ReaderViewModel(
     }
 
     override fun onCleared() {
-        super.onCleared()
-        saveFinalProgress()
         recoveryCoordinator?.updateReaderVisible(false)
         recoveryCoordinator?.updateDocumentLoaded(false, null)
+        recoveryCoordinator?.flushPendingEvidenceAsync()
+        saveFinalProgress()
         pdfDocumentRepository.closeCurrent()
     }
 
@@ -210,7 +224,8 @@ class ReaderViewModel(
             bookId: String,
             bookRepository: BookRepository,
             pdfDocumentRepository: PdfDocumentRepository,
-            recoveryCoordinator: RecoveryCoordinator? = null
+            recoveryCoordinator: RecoveryCoordinator? = null,
+            screenStateReader: ScreenStateReader? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -218,7 +233,8 @@ class ReaderViewModel(
                     bookId = bookId,
                     bookRepository = bookRepository,
                     pdfDocumentRepository = pdfDocumentRepository,
-                    recoveryCoordinator = recoveryCoordinator
+                    recoveryCoordinator = recoveryCoordinator,
+                    screenStateReader = screenStateReader
                 ) as T
             }
         }
