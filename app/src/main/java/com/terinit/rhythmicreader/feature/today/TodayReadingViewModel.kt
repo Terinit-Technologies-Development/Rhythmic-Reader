@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.terinit.rhythmicreader.data.repository.DailyReadingEvidenceRepository
 import com.terinit.rhythmicreader.domain.model.DailyReadingEvidenceSnapshot
 import com.terinit.rhythmicreader.domain.time.LocalDateClock
+import com.terinit.rhythmicreader.integration.rhythmic.RoutineAttentionPreviewClient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,13 +15,16 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 
 class TodayReadingViewModel(
     private val repository: DailyReadingEvidenceRepository,
-    private val localDateClock: LocalDateClock
+    private val localDateClock: LocalDateClock,
+    private val routineAttentionPreviewClient: RoutineAttentionPreviewClient =
+        RoutineAttentionPreviewClient { null },
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TodayReadingUiState())
@@ -37,11 +41,24 @@ class TodayReadingViewModel(
                 val now = localDateClock.nowEpochMs()
                 repository.ensureDay(dateKey, now)
                 repository.observeDailySnapshot(dateKey).collect { snapshot ->
-                    _uiState.value = TodayReadingUiState(
-                        dateKey = dateKey,
-                        evidence = snapshot ?: DailyReadingEvidenceSnapshot.empty(dateKey)
-                    )
+                    _uiState.update {
+                        it.copy(
+                            dateKey = dateKey,
+                            evidence = snapshot ?: DailyReadingEvidenceSnapshot.empty(dateKey),
+                        )
+                    }
                 }
+            }
+        }
+
+        viewModelScope.launch {
+            while (currentCoroutineContext().isActive) {
+                val dateKey = localDateClock.todayDateKey()
+                val nextTarget = routineAttentionPreviewClient.queryNextTarget(dateKey)
+                _uiState.update {
+                    it.copy(nextRoutineTarget = nextTarget, routineTargetLoaded = true)
+                }
+                delay(30_000L)
             }
         }
     }
@@ -49,11 +66,13 @@ class TodayReadingViewModel(
     companion object {
         fun provideFactory(
             repository: DailyReadingEvidenceRepository,
-            localDateClock: LocalDateClock
+            localDateClock: LocalDateClock,
+            routineAttentionPreviewClient: RoutineAttentionPreviewClient =
+                RoutineAttentionPreviewClient { null },
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                TodayReadingViewModel(repository, localDateClock) as T
+                TodayReadingViewModel(repository, localDateClock, routineAttentionPreviewClient) as T
         }
     }
 }

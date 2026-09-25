@@ -346,7 +346,7 @@ fun ReaderScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Recovery: ${recoveryUiState.activeMinutesDisplay} • ${recoveryUiState.qualifiedPagesDisplay} pages",
+                                text = "Read: ${recoveryUiState.activeMinutesDisplay} · Pages: ${recoveryUiState.qualifiedPagesDisplay}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = SageGreenPrimary,
                                 fontWeight = FontWeight.SemiBold

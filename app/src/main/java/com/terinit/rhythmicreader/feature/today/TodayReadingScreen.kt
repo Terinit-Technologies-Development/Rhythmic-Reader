@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,6 +22,7 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -27,9 +30,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.terinit.rhythmicreader.app.Screen
+import com.terinit.rhythmicreader.domain.model.DailyReadingEvidenceSnapshot
+import com.terinit.rhythmicreader.domain.model.RoutineReadingTargetPreview
+import com.terinit.rhythmicreader.feature.recovery.RecoveryCard
+import com.terinit.rhythmicreader.feature.recovery.RecoveryUiState
 import com.terinit.rhythmicreader.ui.components.RhythmicBottomBar
 import com.terinit.rhythmicreader.ui.theme.CharcoalPrimary
 import com.terinit.rhythmicreader.ui.theme.CharcoalSecondary
@@ -42,6 +50,7 @@ import com.terinit.rhythmicreader.ui.theme.WarmSurface
 @Composable
 fun TodayReadingScreen(
     uiState: TodayReadingUiState,
+    recoveryUiState: RecoveryUiState,
     onNavigate: (Screen) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -56,6 +65,7 @@ fun TodayReadingScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
@@ -93,6 +103,19 @@ fun TodayReadingScreen(
                 )
             }
 
+            if (recoveryUiState.status != null) {
+                RecoveryCard(uiState = recoveryUiState)
+            }
+
+            if (!recoveryUiState.isSessionActive) {
+                NextRoutineTargetCard(
+                    preview = uiState.nextRoutineTarget,
+                    isLoaded = uiState.routineTargetLoaded,
+                    todayDateKey = uiState.dateKey,
+                    evidence = uiState.evidence,
+                )
+            }
+
             EvidenceMetricCard(
                 icon = Icons.Default.Timer,
                 label = "Verified active reading",
@@ -118,6 +141,151 @@ fun TodayReadingScreen(
             )
             Spacer(modifier = Modifier.height(4.dp))
         }
+    }
+}
+
+@Composable
+private fun NextRoutineTargetCard(
+    preview: RoutineReadingTargetPreview?,
+    isLoaded: Boolean,
+    todayDateKey: String,
+    evidence: DailyReadingEvidenceSnapshot,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, WarmOutline, RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = WarmSurface),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Next recovery target",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = CharcoalPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "Preview · Routine cooldown",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CharcoalSecondary,
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.AutoStories,
+                    contentDescription = null,
+                    tint = SageGreenPrimary,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(SageGreenContainer)
+                        .padding(10.dp),
+                )
+            }
+
+            when {
+                !isLoaded -> Text(
+                    text = "Checking Rhythmic Routine for the next target…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = CharcoalSecondary,
+                )
+                preview == null -> Text(
+                    text = "Routine’s next target is unavailable. Open Rhythmic Routine to sync its current policy.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = CharcoalSecondary,
+                )
+                preview.dateKey != todayDateKey -> Text(
+                    text = "Refreshing Routine’s target for today…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = CharcoalSecondary,
+                )
+                preview.requiredActiveSeconds == 0L && preview.requiredQualifiedPages == 0 -> {
+                    Text(
+                        text = "Cooldown #${preview.nextCooldownOrdinal} has no reading quota: 0 min and 0 pages.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = CharcoalPrimary,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+                else -> {
+                    Text(
+                        text = "Cooldown #${preview.nextCooldownOrdinal} · preview based on Routine’s current daily policy",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CharcoalSecondary,
+                    )
+                    if (preview.requiredActiveSeconds > 0L) {
+                        TargetProgressRow(
+                            label = "Verified active reading",
+                            value = "${formatActiveDuration(evidence.verifiedActiveSeconds)} / ${formatActiveDuration(preview.requiredActiveSeconds)}",
+                            progress = (evidence.verifiedActiveSeconds.toFloat() /
+                                preview.requiredActiveSeconds.toFloat()).coerceIn(0f, 1f),
+                        )
+                    }
+                    if (preview.requiredQualifiedPages > 0) {
+                        TargetProgressRow(
+                            label = "Dwell-qualified pages",
+                            value = "${evidence.qualifiedPages} / ${preview.requiredQualifiedPages}",
+                            progress = (evidence.qualifiedPages.toFloat() /
+                                preview.requiredQualifiedPages.toFloat()).coerceIn(0f, 1f),
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = "Preview only. Routine makes a quota binding when it starts a recovery session.",
+                style = MaterialTheme.typography.bodySmall,
+                color = CharcoalSecondary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TargetProgressRow(
+    label: String,
+    value: String,
+    progress: Float,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = CharcoalSecondary,
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.labelLarge,
+                color = CharcoalPrimary,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp)),
+            color = SageGreenPrimary,
+            trackColor = SageGreenContainer,
+            strokeCap = StrokeCap.Round,
+        )
     }
 }
 

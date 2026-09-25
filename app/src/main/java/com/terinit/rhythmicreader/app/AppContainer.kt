@@ -13,6 +13,8 @@ import com.terinit.rhythmicreader.data.repository.DailyReadingEvidenceRepository
 import com.terinit.rhythmicreader.data.repository.DefaultDailyReadingEvidenceRepository
 import com.terinit.rhythmicreader.data.repository.RecoveryRepository
 import com.terinit.rhythmicreader.data.system.ScreenStateReader
+import com.terinit.rhythmicreader.integration.rhythmic.AndroidRoutineAttentionPreviewClient
+import com.terinit.rhythmicreader.integration.rhythmic.RoutineAttentionPreviewClient
 import com.terinit.rhythmicreader.domain.recovery.ActiveReadingTracker
 import com.terinit.rhythmicreader.domain.recovery.PageQualificationEngine
 import com.terinit.rhythmicreader.domain.recovery.RecoveryCoordinator
@@ -62,6 +64,9 @@ class AppContainer(
 
     val dailyReadingEvidenceRepository: DailyReadingEvidenceRepository =
         DefaultDailyReadingEvidenceRepository(database.dailyReadingEvidenceDao())
+
+    val routineAttentionPreviewClient: RoutineAttentionPreviewClient =
+        AndroidRoutineAttentionPreviewClient(context.contentResolver)
 
     val dailyEvidenceRecorder = DailyEvidenceRecorder(
         repository = dailyReadingEvidenceRepository,

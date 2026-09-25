@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.terinit.rhythmicreader.domain.model.RecoverySession
 import com.terinit.rhythmicreader.feature.focus.FocusScreen
 import com.terinit.rhythmicreader.feature.library.LibraryScreen
 import com.terinit.rhythmicreader.feature.library.LibraryViewModel
@@ -70,12 +71,18 @@ fun ReaderApp(
             val todayReadingViewModel: TodayReadingViewModel = viewModel(
                 factory = TodayReadingViewModel.provideFactory(
                     repository = container.dailyReadingEvidenceRepository,
-                    localDateClock = container.localDateClock
+                    localDateClock = container.localDateClock,
+                    routineAttentionPreviewClient = container.routineAttentionPreviewClient,
                 )
             )
             val uiState by todayReadingViewModel.uiState.collectAsStateWithLifecycle()
+            val currentSession by container.recoveryCoordinator.currentSession.collectAsStateWithLifecycle()
+            val recoveryUiState = remember(currentSession) {
+                currentSession.toRecoveryUiState()
+            }
             TodayReadingScreen(
                 uiState = uiState,
+                recoveryUiState = recoveryUiState,
                 onNavigate = { currentScreen = it },
                 modifier = modifier.fillMaxSize()
             )
@@ -88,19 +95,7 @@ fun ReaderApp(
             val libraryUiState by libraryViewModel.uiState.collectAsStateWithLifecycle()
             val currentSession by container.recoveryCoordinator.currentSession.collectAsStateWithLifecycle()
             val recoveryUiState = remember(currentSession) {
-                val s = currentSession
-                if (s != null) {
-                    RecoveryUiState(
-                        sessionId = s.sessionId,
-                        status = s.status,
-                        activeSeconds = s.activeSeconds,
-                        requiredActiveSeconds = s.requirement.requiredActiveSeconds,
-                        qualifiedPages = s.qualifiedPages,
-                        requiredQualifiedPages = s.requirement.requiredQualifiedPages
-                    )
-                } else {
-                    RecoveryUiState()
-                }
+                currentSession.toRecoveryUiState()
             }
 
             FocusScreen(
@@ -163,3 +158,14 @@ fun ReaderApp(
         }
     }
 }
+
+private fun RecoverySession?.toRecoveryUiState(): RecoveryUiState = this?.let { session ->
+    RecoveryUiState(
+        sessionId = session.sessionId,
+        status = session.status,
+        activeSeconds = session.activeSeconds,
+        requiredActiveSeconds = session.requirement.requiredActiveSeconds,
+        qualifiedPages = session.qualifiedPages,
+        requiredQualifiedPages = session.requirement.requiredQualifiedPages
+    )
+} ?: RecoveryUiState()
