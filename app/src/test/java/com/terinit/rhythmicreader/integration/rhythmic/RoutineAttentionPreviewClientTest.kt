@@ -1,4 +1,4 @@
-package com.terinit.rhythmicreader.integration.rhythmic
+﻿package com.terinit.rhythmicreader.integration.rhythmic
 
 import android.database.MatrixCursor
 import org.junit.Assert.assertEquals
@@ -21,8 +21,8 @@ class RoutineAttentionPreviewClientTest {
                 RoutineAttentionPreviewProtocol.COLUMN_PROTOCOL_VERSION to RoutineAttentionPreviewProtocol.PROTOCOL_VERSION,
                 RoutineAttentionPreviewProtocol.COLUMN_DATE_KEY to dateKey,
                 RoutineAttentionPreviewProtocol.COLUMN_NEXT_COOLDOWN_ORDINAL to 4,
-                RoutineAttentionPreviewProtocol.COLUMN_REQUIRED_ACTIVE_SECONDS to 5_400L,
-                RoutineAttentionPreviewProtocol.COLUMN_REQUIRED_QUALIFIED_PAGES to 47,
+                RoutineAttentionPreviewProtocol.COLUMN_REQUIRED_ACTIVE_SECONDS to 1_800L,
+                RoutineAttentionPreviewProtocol.COLUMN_REQUIRED_QUALIFIED_PAGES to 11,
             )
         )
 
@@ -33,8 +33,8 @@ class RoutineAttentionPreviewClientTest {
 
         assertEquals(dateKey, preview?.dateKey)
         assertEquals(4, preview?.nextCooldownOrdinal)
-        assertEquals(5_400L, preview?.requiredActiveSeconds)
-        assertEquals(47, preview?.requiredQualifiedPages)
+        assertEquals(1_800L, preview?.requiredActiveSeconds)
+        assertEquals(11, preview?.requiredQualifiedPages)
     }
 
     @Test
@@ -44,8 +44,8 @@ class RoutineAttentionPreviewClientTest {
                 RoutineAttentionPreviewProtocol.COLUMN_PROTOCOL_VERSION to RoutineAttentionPreviewProtocol.PROTOCOL_VERSION,
                 RoutineAttentionPreviewProtocol.COLUMN_DATE_KEY to "2026-09-25",
                 RoutineAttentionPreviewProtocol.COLUMN_NEXT_COOLDOWN_ORDINAL to 4,
-                RoutineAttentionPreviewProtocol.COLUMN_REQUIRED_ACTIVE_SECONDS to 5_400L,
-                RoutineAttentionPreviewProtocol.COLUMN_REQUIRED_QUALIFIED_PAGES to 47,
+                RoutineAttentionPreviewProtocol.COLUMN_REQUIRED_ACTIVE_SECONDS to 1_800L,
+                RoutineAttentionPreviewProtocol.COLUMN_REQUIRED_QUALIFIED_PAGES to 11,
             )
         )
         val unsupportedCursor = cursorFor(
@@ -53,8 +53,8 @@ class RoutineAttentionPreviewClientTest {
                 RoutineAttentionPreviewProtocol.COLUMN_PROTOCOL_VERSION to 99,
                 RoutineAttentionPreviewProtocol.COLUMN_DATE_KEY to dateKey,
                 RoutineAttentionPreviewProtocol.COLUMN_NEXT_COOLDOWN_ORDINAL to 4,
-                RoutineAttentionPreviewProtocol.COLUMN_REQUIRED_ACTIVE_SECONDS to 5_400L,
-                RoutineAttentionPreviewProtocol.COLUMN_REQUIRED_QUALIFIED_PAGES to 47,
+                RoutineAttentionPreviewProtocol.COLUMN_REQUIRED_ACTIVE_SECONDS to 1_800L,
+                RoutineAttentionPreviewProtocol.COLUMN_REQUIRED_QUALIFIED_PAGES to 11,
             )
         )
 
