@@ -54,3 +54,8 @@ requested legacy numbers. The active recovery fixture was seeded directly in
 the private database; this run does not claim a completed 5400/47 reading
 session or the full cross-app physical QA matrix. The pre-test app-data backup
 remains outside the repository under the SW-2026-004 device-backup directory.
+
+After evidence capture, Reader's original private-data archive was restored.
+A fresh pull verified Room schema 4 and `PRAGMA integrity_check = ok`, with the
+original three daily-evidence rows and no test book, recovery session, or
+qualified-page rows. The generated test PDF was removed from Downloads.
