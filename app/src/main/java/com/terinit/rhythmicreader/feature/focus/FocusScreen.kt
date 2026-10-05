@@ -1,4 +1,4 @@
-package com.terinit.rhythmicreader.feature.focus
+﻿package com.terinit.rhythmicreader.feature.focus
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -178,7 +178,7 @@ fun FocusScreen(
                             }
                             Spacer(modifier = Modifier.height(14.dp))
                             Text(
-                                text = "When Rhythmic Routine initiates a reading recovery cycle, your active reading time and qualified page progression will track here automatically.",
+                                text = "When Rhythmic Routine binds a restorative reading session, your active reading time and qualified page progression for that session will track here automatically.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = CharcoalSecondary,
                                 lineHeight = 19.sp
@@ -326,7 +326,7 @@ fun FocusScreen(
                             .padding(18.dp)
                     ) {
                         Text(
-                            text = "How Reading Recovery Works",
+                            text = "How Restorative Reading Works",
                             style = MaterialTheme.typography.titleSmall,
                             color = CharcoalPrimary,
                             fontWeight = FontWeight.SemiBold
@@ -335,7 +335,7 @@ fun FocusScreen(
                         Text(
                             text = "1. Active reading time accumulates only while you are actively reading with screen on.\n" +
                                    "2. Pages qualify when you dwell for a credible reading threshold.\n" +
-                                   "3. Reaching both targets automatically unlocks your Rhythmic Routine re-entry.",
+                                   "3. Reaching both targets completes this restorative reading. Rhythmic Routine remains the authority for when access resumes.",
                             style = MaterialTheme.typography.bodySmall,
                             color = CharcoalSecondary,
                             lineHeight = 20.sp

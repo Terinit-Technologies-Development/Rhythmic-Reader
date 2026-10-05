@@ -1,4 +1,4 @@
-package com.terinit.rhythmicreader.feature.today
+﻿package com.terinit.rhythmicreader.feature.today
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -171,13 +171,23 @@ private fun NextRoutineTargetCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Reading quota",
+                        text = when (preview?.displayKind) {
+                            RoutineReadingTargetPreview.DisplayKind.DAILY_BASELINE -> "Today's Reading"
+                            RoutineReadingTargetPreview.DisplayKind.RESTORATIVE_READING -> "Restorative Reading"
+                            else -> "Reading target"
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         color = CharcoalPrimary,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = "Daily verified reading vs Routine’s next cooldown",
+                        text = when (preview?.displayKind) {
+                            RoutineReadingTargetPreview.DisplayKind.DAILY_BASELINE ->
+                                "Daily baseline from Rhythmic Routine"
+                            RoutineReadingTargetPreview.DisplayKind.RESTORATIVE_READING ->
+                                "One restorative reading session"
+                            else -> "Shared by Rhythmic Routine"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = CharcoalSecondary,
                     )
@@ -196,34 +206,72 @@ private fun NextRoutineTargetCard(
 
             when {
                 !isLoaded -> Text(
-                    text = "Checking Rhythmic Routine for the next target…",
+                    text = "Checking Rhythmic Routine for the next target\u2026",
                     style = MaterialTheme.typography.bodyMedium,
                     color = CharcoalSecondary,
                 )
                 preview == null -> Text(
-                    text = "Routine hasn’t shared a target yet. Open Rhythmic Routine once to publish its current quota.",
+                    text = "Rhythmic Routine hasn't shared a target yet. Open Rhythmic Routine once to publish its current requirements.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = CharcoalSecondary,
                 )
                 preview.dateKey != todayDateKey -> Text(
-                    text = "Refreshing Routine’s target for today…",
+                    text = "Refreshing Rhythmic Routine's target for today\u2026",
                     style = MaterialTheme.typography.bodyMedium,
                     color = CharcoalSecondary,
                 )
                 preview.requiredActiveSeconds == 0L && preview.requiredQualifiedPages == 0 -> {
                     Text(
-                        text = "Cooldown #${preview.nextCooldownOrdinal} has no reading quota: 0 min and 0 pages.",
+                        text = "No reading requirement for this cooldown. The 90-minute cooldown continues on its own.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = CharcoalPrimary,
                         fontWeight = FontWeight.Medium,
                     )
                 }
-                else -> {
+                preview.restorativeCompleteCooldownActive -> {
                     Text(
-                        text = "Cooldown #${preview.nextCooldownOrdinal} · preview based on Routine’s current daily policy",
+                        text = "Reading complete",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = CharcoalPrimary,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        text = "Your restorative requirement is complete. Rhythmic Routine will continue managing the remaining cooldown.",
                         style = MaterialTheme.typography.bodySmall,
                         color = CharcoalSecondary,
                     )
+                }
+                preview.displayKind == RoutineReadingTargetPreview.DisplayKind.RESTORATIVE_READING -> {
+                    val (restorativeSeconds, restorativePages) = preview.displayedRestorativeRequirement
+                    if (preview.readerRecoveryInProgress) {
+                        Text(
+                            text = "Your restorative reading session is in progress below.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CharcoalSecondary,
+                        )
+                    } else {
+                        Text(
+                            text = "${formatActiveDuration(restorativeSeconds)} \u00b7 $restorativePages pages",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = CharcoalPrimary,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Text(
+                            text = when {
+                                preview.awaitingSelection ->
+                                    "Choose this restorative path in Rhythmic Routine to bind a reading session."
+                                preview.selectedProvider == "meditation" ->
+                                    "Rhythmic Routine has this restorative path set to meditation."
+                                else ->
+                                    "This requirement is tracked as its own reading session \u2014 earlier reading today does not count toward it."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CharcoalSecondary,
+                        )
+                    }
+                }
+                else -> {
+                    // Daily baseline (or a neutral v1 target): cumulative for the day.
                     if (preview.requiredActiveSeconds > 0L) {
                         TargetProgressRow(
                             label = "Verified active reading",
@@ -240,18 +288,34 @@ private fun NextRoutineTargetCard(
                                 preview.requiredQualifiedPages.toFloat()).coerceIn(0f, 1f),
                         )
                     }
+                    if (preview.displayKind == RoutineReadingTargetPreview.DisplayKind.DAILY_BASELINE &&
+                        preview.requiredActiveSeconds > 0L &&
+                        evidence.verifiedActiveSeconds >= preview.requiredActiveSeconds &&
+                        evidence.qualifiedPages >= preview.requiredQualifiedPages
+                    ) {
+                        Text(
+                            text = "Daily reading complete",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = CharcoalPrimary,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Text(
+                            text = "You've completed today's foundational reading.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CharcoalSecondary,
+                        )
+                    }
                 }
             }
 
             Text(
-                text = "Preview only. Routine makes a quota binding when it starts a recovery session.",
+                text = "Preview only. Routine makes a requirement binding when it starts a recovery session.",
                 style = MaterialTheme.typography.bodySmall,
                 color = CharcoalSecondary,
             )
         }
     }
 }
-
 @Composable
 private fun TargetProgressRow(
     label: String,

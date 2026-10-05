@@ -102,7 +102,7 @@ fun RecoveryCard(
                             )
                         }
                         Text(
-                            text = "Recovery complete",
+                            text = "Reading complete",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = CharcoalPrimary
@@ -115,7 +115,7 @@ fun RecoveryCard(
                                 .background(SageGreenPrimary)
                         )
                         Text(
-                            text = "Recovery in progress",
+                            text = "Restorative Reading",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = CharcoalPrimary
@@ -143,13 +143,13 @@ fun RecoveryCard(
                 ) {
                     if (uiState.isSessionComplete) {
                         Text(
-                            text = "Both reading targets are met. Rhythmic Routine controls when access resumes.",
+                            text = "Your restorative requirement is complete. Rhythmic Routine will continue managing the remaining cooldown.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = CharcoalSecondary
                         )
                     } else {
                         Text(
-                            text = "Meet both targets below to complete this recovery.",
+                            text = "Complete both targets below to finish this restorative reading session. This session is tracked on its own \u2014 earlier reading today does not count toward it.",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = CharcoalSecondary
