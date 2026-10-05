@@ -5,6 +5,11 @@ publicly downloadable. No Play Store binary or submission is included. Reader
 remains the local outward-attention evidence authority;
 Rhythmic Routine remains the only cooldown and re-entry policy authority.
 
+### APK
+
+- [Download Rhythmic-Reader-v1.3.0.apk](https://github.com/Terinit-Technologies-Development/Rhythmic-Reader/releases/download/v1.3.0/Rhythmic-Reader-v1.3.0.apk)
+- SHA-256: `6c6cbc376571e119535789c4c57af4a83acdc78a4c038317038ecbd94720e884`
+
 ### Highlights
 
 - Routine preview Protocol 2 distinguishes CD3 baseline from CD4+ restorative
