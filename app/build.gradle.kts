@@ -12,8 +12,8 @@ android {
         applicationId = "com.terinit.rhythmicreader"
         minSdk = 28
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.2.0"
+        versionCode = 3
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -33,6 +33,16 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    buildTypes {
+        getByName("release") {
+            // Use the local, ignored shared internal signer when available so
+            // the deployable APK remains update-compatible with Routine.
+            if (file("debug.keystore").exists()) {
+                signingConfig = signingConfigs.getByName("debug")
+            }
+        }
     }
 
     compileOptions {
