@@ -4,6 +4,8 @@
 **Baseline tests:** the controller independently executed 106 native tests: PASS, 0 failures/errors/skips, exit 0. Evidence: `reader-explicit-toolchain-unit.txt` and its XML-derived summary in the programme evidence pack. The read-only contract worker did not itself execute these tests.
 **Scope:** source-only contract investigation. No production code, tests, build files, Git state, signing, or device work was changed.
 
+> **A3 phase 2 update (29 Oct 2026):** Root reproduced the R3 check-then-insert race (`SQLiteConstraintException`, code 1555) on the new concurrency test. The acceptance path now uses a scoped `insertSessionIfAbsent` (IGNORE) followed by reload and an exact full-binding comparison of `(requiredSeconds, requiredPages, createdAt, expiresAt, protocolVersion)`; `createSession` retains ABORT. Wire shape and protocol version `1` are unchanged. The R0 statements below that replay compares only the triple, and that no Reader change is yet justified, are superseded for acceptance. See `A3_REPRODUCTION.md`. Root full suite/lint/assemble and independent review remain pending.
+
 ## 1. Verdict
 
 - Reader exposes **sufficient, policy-neutral** provider contracts for CD3 (V2 calendar) and CD4 Reader (V1 exact session). The blocking defect is Routine-side consumer wiring (DEF-03), not missing Reader capability.

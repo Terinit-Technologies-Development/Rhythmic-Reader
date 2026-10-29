@@ -53,18 +53,6 @@ class DefaultRecoveryRepository(
 
     override suspend fun acceptExternalRequest(request: RecoveryRequest): RecoverySession? {
         if (!request.isValid) return null
-        val existing = recoveryDao.getSession(request.sessionId)
-        if (existing != null) {
-            val matches = existing.requiredActiveSeconds == request.requiredSeconds &&
-                existing.requiredQualifiedPages == request.requiredPages &&
-                existing.expiresAtEpochMs == request.expiresAt
-            return if (matches) {
-                val count = recoveryDao.qualifiedPageCount(request.sessionId)
-                existing.toDomain(count)
-            } else {
-                null
-            }
-        }
 
         val entity = RecoverySessionEntity(
             sessionId = request.sessionId,
@@ -77,23 +65,36 @@ class DefaultRecoveryRepository(
             expiresAtEpochMs = request.expiresAt,
             protocolVersion = request.protocolVersion
         )
-        recoveryDao.insertSession(entity)
-        notifyChange(request.sessionId)
 
-        return RecoverySession(
-            sessionId = request.sessionId,
-            requirement = RecoveryRequirement(
-                requiredActiveSeconds = request.requiredSeconds,
-                requiredQualifiedPages = request.requiredPages
-            ),
-            accumulatedActiveMs = 0L,
-            qualifiedPages = 0,
-            status = RecoveryStatus.ACTIVE,
-            createdAtEpochMs = request.createdAt,
-            completedAtEpochMs = null,
-            expiresAtEpochMs = request.expiresAt,
-            protocolVersion = request.protocolVersion
-        )
+        // Insert-if-absent is atomic at the database level, so concurrent
+        // acceptors (including independent repository instances) cannot both
+        // create the same session. A conflict means another caller won; reload
+        // and accept only an exact immutable-binding match. Never replace,
+        // reset, or delete the winner's persisted evidence.
+        val insertedRowId = recoveryDao.insertSessionIfAbsent(entity)
+        if (insertedRowId != -1L) {
+            notifyChange(request.sessionId)
+            val persisted = recoveryDao.getSession(request.sessionId)
+            return persisted?.toDomain(recoveryDao.qualifiedPageCount(request.sessionId))
+                ?: entity.toDomain(0)
+        }
+
+        val existing = recoveryDao.getSession(request.sessionId) ?: return null
+        if (!existing.matches(request)) return null
+
+        val count = recoveryDao.qualifiedPageCount(request.sessionId)
+        return existing.toDomain(count)
+    }
+
+    private fun RecoverySessionEntity.matches(request: RecoveryRequest): Boolean {
+        // The Routine-issued identity is immutable; a replay with any different
+        // metadata is a conflict, not a reset.
+        return sessionId == request.sessionId &&
+            requiredActiveSeconds == request.requiredSeconds &&
+            requiredQualifiedPages == request.requiredPages &&
+            expiresAtEpochMs == request.expiresAt &&
+            createdAtEpochMs == request.createdAt &&
+            protocolVersion == request.protocolVersion
     }
 
     override suspend fun getSession(sessionId: String): RecoverySession? {

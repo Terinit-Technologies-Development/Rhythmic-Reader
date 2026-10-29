@@ -12,6 +12,13 @@ interface RecoveryDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertSession(session: RecoverySessionEntity)
 
+    /**
+     * Acceptance-only insert that never overwrites an existing session.
+     * Returns the new row id, or -1 when [RecoverySessionEntity.sessionId] exists.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSessionIfAbsent(session: RecoverySessionEntity): Long
+
     @Query("SELECT * FROM recovery_sessions WHERE sessionId = :sessionId LIMIT 1")
     suspend fun getSession(sessionId: String): RecoverySessionEntity?
 
