@@ -10,13 +10,21 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.terinit.rhythmicreader.integration.rhythmic.RecoveryProtocol
 import com.terinit.rhythmicreader.ui.theme.RhythmicReaderTheme
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private var screenStateReceiverRegistered = false
+    private val _recoveryEntry = MutableStateFlow<RecoveryEntryRequest?>(null)
+    private val recoveryEntry: StateFlow<RecoveryEntryRequest?> = _recoveryEntry.asStateFlow()
+    private var recoveryEntrySequence = 0L
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val app = application as? RhythmicReaderApplication ?: return
@@ -35,8 +43,9 @@ class MainActivity : ComponentActivity() {
         val app = application as RhythmicReaderApplication
 
         setContent {
+            val entryRequest by recoveryEntry.collectAsStateWithLifecycle()
             RhythmicReaderTheme {
-                ReaderApp(container = app.container)
+                ReaderApp(container = app.container, recoveryEntry = entryRequest)
             }
         }
     }
@@ -80,7 +89,12 @@ class MainActivity : ComponentActivity() {
         val sessionId = intent?.getStringExtra(RecoveryProtocol.EXTRA_SESSION_ID) ?: return
         val app = application as? RhythmicReaderApplication ?: return
         lifecycleScope.launch {
-            app.container.recoveryCoordinator.restoreSession(sessionId)
+            val session = app.container.recoveryCoordinator.restoreSession(sessionId) ?: return@launch
+            recoveryEntrySequence += 1L
+            _recoveryEntry.value = RecoveryEntryRequest(
+                sessionId = session.sessionId,
+                sequence = recoveryEntrySequence
+            )
         }
     }
 }

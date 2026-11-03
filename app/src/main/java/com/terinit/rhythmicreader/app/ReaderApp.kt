@@ -2,6 +2,7 @@ package com.terinit.rhythmicreader.app
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,12 +30,24 @@ sealed interface Screen {
     data object Settings : Screen
 }
 
+data class RecoveryEntryRequest(
+    val sessionId: String,
+    val sequence: Long
+)
+
 @Composable
 fun ReaderApp(
     container: AppContainer,
+    recoveryEntry: RecoveryEntryRequest? = null,
     modifier: Modifier = Modifier
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Library) }
+
+    LaunchedEffect(recoveryEntry?.sequence) {
+        if (recoveryEntry != null && currentScreen !is Screen.Reader) {
+            currentScreen = Screen.Focus
+        }
+    }
 
     when (val screen = currentScreen) {
         is Screen.Library -> {

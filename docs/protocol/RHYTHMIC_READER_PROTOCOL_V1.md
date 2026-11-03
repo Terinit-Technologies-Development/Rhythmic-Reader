@@ -34,17 +34,19 @@ Rhythmic Routine initiates or resumes a recovery reading session by sending an *
 ### Intent Extras Specification
 | Extra Key | Type | Description | Defensive Validation Bounds |
 |---|---|---|---|
-| `recovery.session_id` | `String` | Unique session identifier | Valid UUID string format |
+| `recovery.session_id` | `String` | Unique session identifier | Canonical UUID or bounded opaque identifier (1–128 ASCII; first `[A-Za-z0-9]`, remaining `[A-Za-z0-9._:-]`) |
 | `recovery.protocol_version` | `Int` | Protocol version | Must equal `1` |
 | `recovery.required_seconds` | `Int` | Active reading target in seconds | Range: `60` to `21600` (1 min – 6 hrs) |
 | `recovery.required_pages` | `Int` | Qualified pages target | Range: `1` to `500` |
 | `recovery.created_at` | `Long` | Request creation timestamp (UTC ms) | Epoch milliseconds (> 0) |
 | `recovery.expires_at` | `Long` | Session deadline timestamp (UTC ms) | Must be strictly greater than `recovery.created_at` |
 
+`recovery.session_id` remains a `String` on the wire. Canonical UUIDs retain their prior semantics. Stable opaque identifiers are accepted additively and are persisted and queried exactly as supplied; they are never trimmed, normalized, or rewritten. This clarification does not change protocol version `1` or the provider schema. Reader code `5` is the first build that accepts opaque identifiers; older UUID-only Reader builds reject them even though the protocol version is `1`.
+
 ### Idempotency and Parameter Conflicts
 1. **Identical Request**: If a session with `session_id` already exists and its target parameters (`required_seconds`, `required_pages`, `expires_at`) match, Reader opens the existing session without resetting progress.
 2. **Conflicting Request**: If `session_id` already exists but target parameters differ, the request is rejected with a logged warning, preserving the existing session state.
-3. **Validation Failure**: If any bound check or UUID format validation fails, the Intent is rejected and the activity finishes safely without altering state.
+3. **Validation Failure**: If any bound check or session identifier format validation fails, the Intent is rejected and the activity finishes safely without altering state.
 
 ---
 
@@ -63,7 +65,7 @@ Queries to `content://com.terinit.rhythmicreader.recovery/sessions/{sessionId}` 
 
 | Column Name | Type | Description | Notes |
 |---|---|---|---|
-| `sessionId` | `String` | The requested session UUID | Primary key |
+| `sessionId` | `String` | The requested session identifier (UUID or opaque) | Primary key |
 | `protocolVersion` | `Int` | Protocol version | Always `1` |
 | `status` | `String` | Current session lifecycle status | Enum: `ACTIVE`, `COMPLETE`, `ABANDONED`, `EXPIRED` |
 | `activeSeconds` | `Int` | Verified active reading time in seconds | Computed as `floor(accumulatedActiveMs / 1000)` |

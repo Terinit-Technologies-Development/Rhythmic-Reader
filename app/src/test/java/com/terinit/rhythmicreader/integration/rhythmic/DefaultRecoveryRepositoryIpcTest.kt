@@ -95,6 +95,44 @@ class DefaultRecoveryRepositoryIpcTest {
     }
 
     @Test
+    fun acceptExternalRequest_opaqueBindingRoundTripsAndReplays() = runBlocking {
+        val opaqueId = "gate-ad-20261103-0800-sw005-qa-cycle-4-o4-reader"
+        val request = RecoveryRequest(
+            sessionId = opaqueId,
+            protocolVersion = 1,
+            requiredSeconds = 1800L,
+            requiredPages = 11,
+            createdAt = now,
+            expiresAt = now + 3600_000L
+        )
+
+        val accepted = repository.acceptExternalRequest(request)
+        assertNotNull(accepted)
+        assertEquals(opaqueId, accepted?.sessionId)
+        assertEquals(RecoveryStatus.ACTIVE, accepted?.status)
+        assertEquals(0L, accepted?.activeSeconds)
+        assertEquals(0, accepted?.qualifiedPages)
+
+        repository.updateActiveTime(opaqueId, 45_000L)
+        repository.qualifyPage(opaqueId, "book-opaque", 7)
+
+        val replayed = repository.acceptExternalRequest(request)
+        assertNotNull(replayed)
+        assertEquals(opaqueId, replayed?.sessionId)
+        assertEquals(45_000L, replayed?.accumulatedActiveMs)
+        assertEquals(45L, replayed?.activeSeconds)
+        assertEquals(1, replayed?.qualifiedPages)
+
+        assertNull(
+            "conflicting replay must not replace the opaque binding",
+            repository.acceptExternalRequest(request.copy(requiredPages = 12))
+        )
+        val stored = repository.getSession(opaqueId)
+        assertEquals(11, stored?.requirement?.requiredQualifiedPages)
+        assertEquals(45_000L, stored?.accumulatedActiveMs)
+    }
+
+    @Test
     fun acceptExternalRequest_rejectsConflictingParams() = runBlocking {
         val originalRequest = RecoveryRequest(
             sessionId = sessionId,

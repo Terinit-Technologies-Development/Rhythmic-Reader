@@ -19,8 +19,10 @@ data class RecoveryRequest(
         if (protocolVersion != RecoveryProtocol.PROTOCOL_VERSION) {
             return ValidationResult.Invalid("Unsupported protocol version: $protocolVersion (expected ${RecoveryProtocol.PROTOCOL_VERSION})")
         }
-        if (!isValidUuid(sessionId)) {
-            return ValidationResult.Invalid("Invalid session ID format; must be UUID: $sessionId")
+        if (!isValidSessionId(sessionId)) {
+            return ValidationResult.Invalid(
+                "Invalid session ID format; must be canonical UUID or bounded opaque ID: $sessionId"
+            )
         }
         if (requiredSeconds !in MIN_REQUIRED_SECONDS..MAX_REQUIRED_SECONDS) {
             return ValidationResult.Invalid("requiredSeconds $requiredSeconds out of bounds ($MIN_REQUIRED_SECONDS..$MAX_REQUIRED_SECONDS)")
@@ -46,10 +48,20 @@ data class RecoveryRequest(
         const val MIN_REQUIRED_PAGES = 1
         const val MAX_REQUIRED_PAGES = 500
 
+        private val OPAQUE_SESSION_ID = Regex("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")
+
         fun isValidUuid(uuid: String): Boolean {
             return runCatching {
                 UUID.fromString(uuid).toString().equals(uuid, ignoreCase = true)
             }.getOrDefault(false)
+        }
+
+        /**
+         * Accepts canonical UUIDs and stable, bounded opaque identifiers.
+         * The identifier is used exactly as supplied; it is never normalized.
+         */
+        fun isValidSessionId(sessionId: String): Boolean {
+            return isValidUuid(sessionId) || OPAQUE_SESSION_ID.matches(sessionId)
         }
     }
 }
