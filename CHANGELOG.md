@@ -29,10 +29,15 @@ private/internal Android; no public store publication. V1 wire protocol remains
   code `5` accepts that binding and completes the existing immutable-binding
   acceptance path. Older UUID-only Reader builds reject current Routine IDs
   despite protocol `1`.
+- **Foreground-resume reading credit:** the lifecycle observer previously read
+  the initial `viewerState`/`uiState` values and could leave Reader marked
+  invisible after returning from background while the PDF stayed visible. The
+  observer now reads the latest visibility state on every resume. No timer,
+  coordinator, ledger, or schema behavior changed.
 
 ### Changed
 
-- **Version metadata:** `versionName = "1.3.1"`, `versionCode = 5`.
+- **Version metadata:** `versionName = "1.3.1"`, `versionCode = 6`.
 - No schema, permission, signing, provider URI/column, timing, or page
   semantics changed. Existing recovery records are preserved.
 

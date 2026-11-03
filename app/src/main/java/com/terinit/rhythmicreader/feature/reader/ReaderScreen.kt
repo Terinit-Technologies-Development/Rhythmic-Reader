@@ -54,6 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -123,16 +124,24 @@ fun ReaderScreen(
     val recoveryUiState by viewModel.recoveryUiState.collectAsStateWithLifecycle()
     var showRecoveryDevDialog by remember { mutableStateOf(false) }
 
+    val latestUiState = rememberUpdatedState(uiState)
+    val latestViewerState = rememberUpdatedState(viewerState)
+    val latestShowRecoveryDevDialog = rememberUpdatedState(showRecoveryDevDialog)
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
+                    val currentUiState = latestUiState.value
                     viewModel.onAppForegroundChanged(true)
                     viewModel.refreshScreenInteractive()
                     viewModel.onReaderVisibleChanged(
-                        uiState.pdfDocument != null && viewerState != null &&
-                            !uiState.isLoading && !showRecoveryDevDialog
+                        latestViewerState.value != null &&
+                            currentUiState.pdfDocument != null &&
+                            !currentUiState.isLoading &&
+                            !currentUiState.isDocumentUnavailable &&
+                            !latestShowRecoveryDevDialog.value
                     )
                 }
                 Lifecycle.Event.ON_PAUSE -> {
