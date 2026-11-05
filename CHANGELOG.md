@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.1 — SW-2026-005, unreleased
+
+Preserve exact bound recovery session identity and qualified progress on interruption and return. Retain V1 and V2 evidence compatibility. Verified 119 unit tests and physical threshold/resume checks.
+
+
 All notable changes to Rhythmic Reader are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
