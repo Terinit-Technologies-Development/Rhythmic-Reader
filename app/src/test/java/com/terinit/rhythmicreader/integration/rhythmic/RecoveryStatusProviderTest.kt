@@ -67,6 +67,37 @@ class RecoveryStatusProviderTest {
     }
 
     @Test
+    fun queryOpaqueSession_returnsExpectedData() {
+        runBlocking {
+            val opaqueId = "gate-ad-20261103-0800-sw005-qa-cycle-4-o4-reader"
+            val request = RecoveryRequest(
+                sessionId = opaqueId,
+                protocolVersion = 1,
+                requiredSeconds = 1800L,
+                requiredPages = 11,
+                createdAt = now,
+                expiresAt = now + 3600_000L
+            )
+            app.container.recoveryRepository.acceptExternalRequest(request)
+            app.container.recoveryRepository.updateActiveTime(opaqueId, 65_000L)
+            app.container.recoveryRepository.qualifyPage(opaqueId, "book-opaque", 3)
+
+            val cursor = provider.query(RecoveryProtocol.sessionUri(opaqueId), null, null, null, null)
+
+            assertNotNull(cursor)
+            assertEquals(1, cursor?.count)
+            cursor?.use {
+                it.moveToFirst()
+                assertEquals(opaqueId, it.getString(it.getColumnIndexOrThrow(RecoveryProtocol.COLUMN_SESSION_ID)))
+                assertEquals(1, it.getInt(it.getColumnIndexOrThrow(RecoveryProtocol.COLUMN_PROTOCOL_VERSION)))
+                assertEquals("ACTIVE", it.getString(it.getColumnIndexOrThrow(RecoveryProtocol.COLUMN_STATUS)))
+                assertEquals(65, it.getInt(it.getColumnIndexOrThrow(RecoveryProtocol.COLUMN_ACTIVE_SECONDS)))
+                assertEquals(1, it.getInt(it.getColumnIndexOrThrow(RecoveryProtocol.COLUMN_QUALIFIED_PAGES)))
+            }
+        }
+    }
+
+    @Test
     fun queryNonExistentSession_returnsEmptyCursor() {
         val unknownUri = RecoveryProtocol.sessionUri(UUID.randomUUID().toString())
         val cursor = provider.query(unknownUri, null, null, null, null)

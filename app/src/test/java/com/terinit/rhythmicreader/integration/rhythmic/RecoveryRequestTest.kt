@@ -38,16 +38,64 @@ class RecoveryRequestTest {
     }
 
     @Test
-    fun nonUuidSessionId_rejected() {
+    fun opaqueSessionId_passesValidation() {
+        val opaqueId = "gate-ad-20261103-0800-sw005-qa-cycle-4-o4-reader"
         val request = RecoveryRequest(
-            sessionId = "not-a-valid-uuid",
+            sessionId = opaqueId,
             protocolVersion = 1,
             requiredSeconds = 1800L,
-            requiredPages = 10,
+            requiredPages = 11,
             createdAt = now,
             expiresAt = now + 3600_000L
         )
-        assertFalse(request.isValid)
+        assertFalse("opaque IDs must not be treated as UUIDs", RecoveryRequest.isValidUuid(opaqueId))
+        assertTrue(RecoveryRequest.isValidSessionId(opaqueId))
+        assertTrue(request.isValid)
+        assertTrue(request.validate() is RecoveryRequest.ValidationResult.Valid)
+    }
+
+    @Test
+    fun opaqueSessionId_boundaryLengthIsEnforced() {
+        val maximum = RecoveryRequest(
+            sessionId = "a".repeat(128),
+            protocolVersion = 1,
+            requiredSeconds = 1800L,
+            requiredPages = 11,
+            createdAt = now,
+            expiresAt = now + 3600_000L
+        )
+        assertTrue(maximum.isValid)
+
+        val overMaximum = RecoveryRequest(
+            sessionId = "a".repeat(129),
+            protocolVersion = 1,
+            requiredSeconds = 1800L,
+            requiredPages = 11,
+            createdAt = now,
+            expiresAt = now + 3600_000L
+        )
+        assertFalse(overMaximum.isValid)
+    }
+
+    @Test
+    fun invalidSessionIdSyntax_rejected() {
+        listOf(
+            "",
+            "-leading-punctuation",
+            "contains space",
+            "contains/slash",
+            "contains\nnewline"
+        ).forEach { sessionId ->
+            val request = RecoveryRequest(
+                sessionId = sessionId,
+                protocolVersion = 1,
+                requiredSeconds = 1800L,
+                requiredPages = 11,
+                createdAt = now,
+                expiresAt = now + 3600_000L
+            )
+            assertFalse("session ID must be rejected: $sessionId", request.isValid)
+        }
     }
 
     @Test

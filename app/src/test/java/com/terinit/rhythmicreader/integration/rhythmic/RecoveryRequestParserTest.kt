@@ -37,6 +37,23 @@ class RecoveryRequestParserTest {
     }
 
     @Test
+    fun parseOpaqueSessionIdIntent_preservesExactId() {
+        val opaqueId = "gate-ad-20261103-0800-sw005-qa-cycle-4-o4-reader"
+        val intent = Intent(RecoveryProtocol.ACTION_START_RECOVERY).apply {
+            putExtra(RecoveryProtocol.EXTRA_SESSION_ID, opaqueId)
+            putExtra(RecoveryProtocol.EXTRA_PROTOCOL_VERSION, 1)
+            putExtra(RecoveryProtocol.EXTRA_REQUIRED_SECONDS, 1800)
+            putExtra(RecoveryProtocol.EXTRA_REQUIRED_PAGES, 11)
+            putExtra(RecoveryProtocol.EXTRA_CREATED_AT, now)
+            putExtra(RecoveryProtocol.EXTRA_EXPIRES_AT, now + 3600_000L)
+        }
+
+        val parsed = RecoveryRequestParser.fromIntent(intent)
+        assertNotNull(parsed)
+        assertEquals(opaqueId, parsed?.sessionId)
+    }
+
+    @Test
     fun nullIntent_returnsNull() {
         assertNull(RecoveryRequestParser.fromIntent(null))
     }

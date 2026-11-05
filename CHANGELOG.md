@@ -1,9 +1,55 @@
 # Changelog
 
+## 1.3.1 � SW-2026-005, unreleased
+
+Preserve exact bound recovery session identity and qualified progress on interruption and return. Retain V1 and V2 evidence compatibility. Verified 119 unit tests and physical threshold/resume checks.
+
+
 All notable changes to Rhythmic Reader are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.3.1] — unreleased
+
+Coordinated corrective build with Rhythmic Routine. Distribution remains
+private/internal Android; no public store publication. V1 wire protocol remains
+`1`.
+
+### Added
+
+- **Opaque recovery session IDs:** V1 entry now accepts stable, bounded opaque
+  identifiers in addition to canonical UUIDs. IDs are persisted and queried
+  exactly as supplied, without trimming or normalization. Existing UUID callers
+  retain their prior behavior.
+- **Bound entry flow:** an accepted explicit recovery entry routes to Focus;
+  an already visible Reader surface is left in place. Both cold-start and
+  `onNewIntent` delivery are covered. Ordinary launches do not route merely
+  because an unrelated active row exists.
+
+### Fixed
+
+- **CD4 Reader entry rejection:** Reader code `4` rejected the current Routine
+  `gateId + "-reader"` binding at V1 validation, before persistence. Reader
+  code `5` accepts that binding and completes the existing immutable-binding
+  acceptance path. Older UUID-only Reader builds reject current Routine IDs
+  despite protocol `1`.
+- **Foreground-resume reading credit:** the lifecycle observer previously read
+  the initial `viewerState`/`uiState` values and could leave Reader marked
+  invisible after returning from background while the PDF stayed visible. The
+  observer now reads the latest visibility state on every resume. No timer,
+  coordinator, ledger, or schema behavior changed.
+
+### Changed
+
+- **Version metadata:** `versionName = "1.3.1"`, `versionCode = 6`.
+- No schema, permission, signing, provider URI/column, timing, or page
+  semantics changed. Existing recovery records are preserved.
+
+### Validation
+
+- Root-owned unit tests, lint, assembly, signing, and first/repeat entry
+  verification remain pending; the source author did not run them.
 
 ## [1.2.0] — 2026-09-26
 
